@@ -13,6 +13,7 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "node --experimental-strip-types --test tests/*.test.ts",
+    "test:e2e": "playwright test",
     "validate:content": "node --experimental-strip-types scripts/validate-content.ts"
   },
   "dependencies": {
