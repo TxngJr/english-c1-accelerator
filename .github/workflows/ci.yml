@@ -57,6 +57,8 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Run critical browser E2E flows
+        env:
+          E2E_DIAGNOSTIC: "1"
         shell: bash
         run: |
           set -o pipefail
