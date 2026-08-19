@@ -1,5 +1,5 @@
 import type { LearnerState } from "./types";
-import { normalizeErrorMasteryScore } from "./errors";
+import { normalizeErrorMasteryScore } from "./errors.ts";
 
 export const STORAGE_KEY = "english-c1-accelerator:v3-production";
 const LEGACY_KEYS = ["english-c1-accelerator:v2-personalized", "english-c1-accelerator:v1"];
