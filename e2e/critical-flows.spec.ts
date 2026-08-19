@@ -12,6 +12,10 @@ async function seedState(page: import("@playwright/test").Page, state: LearnerSt
   }, { key: STORAGE_KEY, value: JSON.stringify(state) });
 }
 
+async function persistedState(page: import("@playwright/test").Page): Promise<LearnerState> {
+  return page.evaluate((key) => JSON.parse(window.localStorage.getItem(key) ?? "null") as LearnerState, STORAGE_KEY);
+}
+
 test("renders the app and serves the hardened security headers", async ({ page, request }) => {
   const response = await request.get("/");
   expect(response.status()).toBe(200);
@@ -30,6 +34,7 @@ test("Add to review is React-state driven and survives reload", async ({ page })
 
   await page.getByRole("button", { name: "＋ Add to review" }).first().click();
   await expect(page.getByRole("button", { name: "✓ Added to review" }).first()).toBeDisabled();
+  await expect.poll(async () => (await persistedState(page)).srsItems.length).toBe(1);
 
   await page.reload();
   await openTab(page, "Vocabulary");
@@ -56,6 +61,7 @@ test("incorrect SRS recall cannot be graded Good or Easy", async ({ page }) => {
   await page.goto("/");
   await openTab(page, "Vocabulary");
   await page.getByRole("button", { name: "＋ Add to review" }).first().click();
+  await expect.poll(async () => (await persistedState(page)).srsItems.length).toBe(1);
 
   await openTab(page, "Review");
   const recall = page.getByPlaceholder("Recall first, then check...").first();
@@ -97,6 +103,7 @@ test("self-scored A2 checkpoint stays practice-only in the real UI", async ({ pa
   }
   await scorer.getByRole("button", { name: "Save A2 checkpoint evidence" }).click();
   await expect(page.getByText(/Passed rubric · self/).first()).toBeVisible();
+  await expect.poll(async () => (await persistedState(page)).checkpointAttempts.length).toBe(1);
 
   await openTab(page, "Progress");
   const readiness = page.locator(".card.card-pad").filter({ hasText: "A2 readiness" }).first();
@@ -104,7 +111,11 @@ test("self-scored A2 checkpoint stays practice-only in the real UI", async ({ pa
   await expect(readiness.getByText(/no verified pass/)).toBeVisible();
 });
 
-test("invalid backup import surfaces a recoverable error instead of replacing progress", async ({ page }) => {
+test("invalid backup import surfaces an error without replacing existing progress", async ({ page }) => {
+  const state = structuredClone(defaultState);
+  state.xp = 321;
+  await seedState(page, state);
+
   await page.goto("/");
   await openTab(page, "Settings");
 
@@ -117,6 +128,7 @@ test("invalid backup import surfaces a recoverable error instead of replacing pr
 
   await expect(page.getByText("Backup failed.")).toBeVisible();
   await expect(page.getByText("Backup file is not valid JSON.")).toBeVisible();
+  await expect.poll(async () => (await persistedState(page)).xp).toBe(321);
 });
 
 test("mobile navigation exposes all learning sections", async ({ page }) => {
