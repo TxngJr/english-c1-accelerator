@@ -1,0 +1,32 @@
+name: Apply assessment integrity migration
+
+on:
+  push:
+    branches:
+      - chatgpt/assessment-integrity
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: ${{ !contains(github.event.head_commit.message, '[assessment-integrity-applied]') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+      - run: python scripts/apply-assessment-integrity.py
+      - run: |
+          rm scripts/apply-assessment-integrity.py
+          rm .github/workflows/apply-assessment-integrity.yml
+      - name: Commit migration
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "refactor(assessment): enforce verified checkpoint evidence [assessment-integrity-applied]"
+          git push origin HEAD:${{ github.ref_name }}
