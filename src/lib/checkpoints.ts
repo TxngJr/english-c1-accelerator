@@ -7,7 +7,8 @@ const PROMOTED_SKILLS: Skill[] = [
   "reading",
   "writing",
   "grammarProduction",
-  "vocabulary"
+  "vocabulary",
+  "pronunciation"
 ];
 
 function levelIndex(level: CEFR): number {
