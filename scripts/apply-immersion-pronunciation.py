@@ -13,12 +13,6 @@ def replace_once(text: str, old: str, new: str, label: str) -> str:
     return text.replace(old, new, 1)
 
 
-def replace_count(text: str, old: str, new: str, label: str, expected: int) -> str:
-    count = text.count(old)
-    if count != expected:
-        raise RuntimeError(f"{label}: expected {expected} occurrence(s), found {count}")
-    return text.replace(old, new)
-
 adaptive = replace_once(
     adaptive,
     'import { latestVerifiedCheckpoint } from "./checkpoints.ts";',
@@ -89,12 +83,23 @@ app = replace_once(
     '      <ThaiHelp text="ฟังก่อนโดยไม่เปิด transcript แล้วจับใจความรวม จากนั้นฟังรอบสองเพื่อเก็บรายละเอียด" />',
     "listening Thai guidance",
 )
-app = replace_count(
+app = replace_once(
+    app,
+    '{activity.instructionsThai ? <p>{activity.instructionsThai}</p> : null}',
+    '<ThaiHelp text={activity.instructionsThai} />',
+    "warmup Thai instructions",
+)
+app = replace_once(
     app,
     '{activity.explanationThai ? <p>{activity.explanationThai}</p> : null}',
     '<ThaiHelp text={activity.explanationThai} />',
-    "grammar Thai explanations",
-    2,
+    "lesson grammar Thai explanation",
+)
+app = replace_once(
+    app,
+    '<p>{activity.explanationThai}</p>',
+    '<ThaiHelp text={activity.explanationThai} />',
+    "grammar tab Thai explanation",
 )
 app = replace_once(
     app,
