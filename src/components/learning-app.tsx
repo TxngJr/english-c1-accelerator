@@ -266,7 +266,7 @@ function ExerciseCard({
   onSpeakingSaved?: (exercise: Exercise, duration: number, blob: Blob) => void;
 }) {
   const [answer, setAnswer] = useState("");
-  const [startedAt, setStartedAt] = useState<number>(() => Date.now());
+  const [startedAt] = useState<number>(() => Date.now());
   const [showModel, setShowModel] = useState(false);
 
   const isSpeaking = ["speaking-prompt", "shadowing", "timed-response"].includes(exercise.type);
@@ -402,9 +402,15 @@ function SrsReviewCard({
 }) {
   const [answer, setAnswer] = useState("");
   const [submitted, setSubmitted] = useState(false);
-  const startedAt = useRef(Date.now());
-  const responseMs = Math.max(1, Date.now() - startedAt.current);
+  const [startedAt] = useState(() => Date.now());
+  const [responseMs, setResponseMs] = useState<number>();
   const correct = submitted && normalizeAnswer(answer) === normalizeAnswer(item.answer);
+
+  const submitRecall = () => {
+    if (!answer.trim()) return;
+    setResponseMs(Math.max(1, Date.now() - startedAt));
+    setSubmitted(true);
+  };
 
   const directionLabel: Record<SRSItem["direction"], string> = {
     "thai-to-english": "Thai → English",
@@ -422,13 +428,13 @@ function SrsReviewCard({
         value={answer}
         onChange={(event) => setAnswer(event.target.value)}
         onKeyDown={(event) => {
-          if (event.key === "Enter" && answer.trim()) setSubmitted(true);
+          if (event.key === "Enter") submitRecall();
         }}
         placeholder="Recall first, then check..."
         disabled={submitted}
       />
       {!submitted ? (
-        <button className="btn primary small" onClick={() => setSubmitted(true)} disabled={!answer.trim()}>
+        <button className="btn primary small" onClick={submitRecall} disabled={!answer.trim()}>
           Check recall
         </button>
       ) : (
@@ -445,14 +451,14 @@ function SrsReviewCard({
                   className="choice"
                   key={grade}
                   disabled={blocked}
-                  onClick={() => onGrade(item.id, grade, responseMs)}
+                  onClick={() => onGrade(item.id, grade, responseMs ?? 1)}
                 >
                   {grade === 1 ? "Forgot" : grade === 3 ? "Hard" : grade === 4 ? "Good" : "Easy"}
                 </button>
               );
             })}
           </div>
-          <div className="small muted">Response time: {(responseMs / 1000).toFixed(1)}s</div>
+          <div className="small muted">Response time: {((responseMs ?? 0) / 1000).toFixed(1)}s</div>
         </>
       )}
     </div>
