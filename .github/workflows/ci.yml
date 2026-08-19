@@ -10,61 +10,21 @@ on:
       - main
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  migrate-pronunciation-id:
-    name: Apply one-shot pronunciation id repair
-    if: ${{ github.ref == 'refs/heads/chatgpt/immersion-pronunciation' || github.head_ref == 'chatgpt/immersion-pronunciation' }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - name: Checkout latest source branch
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.head_ref || github.ref_name }}
-          fetch-depth: 0
-
-      - name: Apply repair when tooling is still present
-        run: |
-          if [ -f scripts/fix-pronunciation-id.py ]; then
-            python scripts/fix-pronunciation-id.py
-            rm scripts/fix-pronunciation-id.py
-          else
-            echo "Repair already applied; nothing to migrate."
-          fi
-
-      - name: Commit source repair when needed
-        env:
-          BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
-        run: |
-          if git diff --quiet; then
-            echo "No source changes to commit."
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git diff --cached --check
-          git commit -m "fix(ui): make pronunciation evidence id generation lint-safe [pronunciation-id-fixed]"
-          git push origin HEAD:${BRANCH_NAME}
-
   verify:
     name: Verify production build
-    needs: migrate-pronunciation-id
-    if: ${{ always() && (needs.migrate-pronunciation-id.result == 'success' || needs.migrate-pronunciation-id.result == 'skipped') }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
     steps:
-      - name: Checkout latest source branch
+      - name: Checkout
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.head_ref || github.ref_name }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
