@@ -21,6 +21,7 @@ import { recordCheckpointAttempt } from "@/lib/checkpoints";
 import { DataManagement, StorageHealthBanner } from "@/components/data-management";
 import { immersionLabel, thaiSupportMode, type ThaiSupportMode } from "@/lib/immersion";
 import { longestReadinessSpeakingSeconds } from "@/lib/speaking-evidence";
+import { createEvidenceId } from "@/lib/ids";
 import type { CheckpointAttempt, CheckpointLevel, Exercise, LearnerState, ListeningBlock, ReadingBlock, Skill, SpeakingRecord, SRSItem, VocabularyItem } from "@/lib/types";
 
 type Tab =
@@ -895,7 +896,7 @@ export function LearningApp() {
 
   const savePronunciationRecord = async (trackIndex: number, focus: string, duration: number, blob: Blob) => {
     if (duration < 2) return;
-    const recordId = `pronunciation-${trackIndex}-${Date.now()}`;
+    const recordId = createEvidenceId(`pronunciation-${trackIndex}`);
     try {
       await saveRecordingBlob(recordId, blob);
     } catch {
