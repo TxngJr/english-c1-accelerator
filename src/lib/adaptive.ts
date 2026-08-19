@@ -1,5 +1,6 @@
 import { dailySkillBaseWeights, immersionMinimums, personalizedStages, type ProgramStageId } from "../content/personalized-program.ts";
 import type { CEFR, CheckpointAttempt, CheckpointLevel, LearnerState, Skill } from "./types";
+import { latestVerifiedCheckpoint } from "./checkpoints.ts";
 
 export const levelOrder: CEFR[] = ["A1", "A1+", "A2-", "A2", "A2+", "B1-", "B1", "B1+", "B2-", "B2", "B2+", "C1-", "C1"];
 
@@ -101,16 +102,7 @@ export type ReadinessReport = {
 };
 
 function latestCheckpoint(state: LearnerState, level: CheckpointLevel): CheckpointAttempt | undefined {
-  if (level === "C1") {
-    const independentlyPassed = state.checkpointAttempts.find((attempt) =>
-      attempt.level === "C1" &&
-      attempt.passed &&
-      attempt.evaluator !== "self" &&
-      Boolean(attempt.evaluatorName?.trim())
-    );
-    if (independentlyPassed) return independentlyPassed;
-  }
-  return state.checkpointAttempts.find((attempt) => attempt.level === level);
+  return latestVerifiedCheckpoint(state, level);
 }
 
 export function readinessReport(state: LearnerState, level: CheckpointLevel): ReadinessReport {
@@ -171,10 +163,10 @@ export function readinessReport(state: LearnerState, level: CheckpointLevel): Re
   const checkpoint = latestCheckpoint(state, level);
   criteria.push({
     id: "checkpoint",
-    label: `${level} integrated checkpoint`,
-    passed: Boolean(checkpoint?.passed),
-    value: checkpoint ? `${checkpoint.passed ? "passed" : "not passed"} · ${checkpoint.evaluator}` : "not attempted",
-    target: "pass speaking + listening + reading + writing + language use",
+    label: `${level} verified integrated checkpoint`,
+    passed: Boolean(checkpoint),
+    value: checkpoint ? `passed · ${checkpoint.evaluator} · ${checkpoint.evaluatorName}` : "no verified pass",
+    target: "identified independent pass across speaking + listening + reading + writing + language use",
     critical: true
   });
 
