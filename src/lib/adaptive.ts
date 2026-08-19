@@ -1,6 +1,7 @@
 import { dailySkillBaseWeights, immersionMinimums, personalizedStages, type ProgramStageId } from "../content/personalized-program.ts";
 import type { CEFR, CheckpointAttempt, CheckpointLevel, LearnerState, Skill } from "./types";
 import { latestVerifiedCheckpoint } from "./checkpoints.ts";
+import { longestReadinessSpeakingSeconds } from "./speaking-evidence.ts";
 
 export const levelOrder: CEFR[] = ["A1", "A1+", "A2-", "A2", "A2+", "B1-", "B1", "B1+", "B2-", "B2", "B2+", "C1-", "C1"];
 
@@ -121,7 +122,7 @@ export function readinessReport(state: LearnerState, level: CheckpointLevel): Re
     });
   }
 
-  const longestSpeaking = Math.max(0, ...state.speakingRecords.map((record) => record.durationSeconds));
+  const longestSpeaking = longestReadinessSpeakingSeconds(state.speakingRecords);
   criteria.push({
     id: "speaking-duration",
     label: "Longest unscripted speaking evidence",

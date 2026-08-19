@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { lessons } from "@/content/days";
 import { getAnyLesson, nextLessonAfter } from "@/content/all-lessons";
 import { finalCourseDay } from "@/content/extended-lessons";
@@ -19,6 +19,8 @@ import { clearRecordingBlobs, loadRecordingBlob, saveRecordingBlob } from "@/lib
 import { c1ExitEvidenceStatus } from "@/lib/c1-evidence";
 import { recordCheckpointAttempt } from "@/lib/checkpoints";
 import { DataManagement, StorageHealthBanner } from "@/components/data-management";
+import { immersionLabel, thaiSupportMode, type ThaiSupportMode } from "@/lib/immersion";
+import { longestReadinessSpeakingSeconds } from "@/lib/speaking-evidence";
 import type { CheckpointAttempt, CheckpointLevel, Exercise, LearnerState, ListeningBlock, ReadingBlock, Skill, SpeakingRecord, SRSItem, VocabularyItem } from "@/lib/types";
 
 type Tab =
@@ -63,6 +65,21 @@ const skillLabels: Record<Skill, string> = {
   vocabulary: "Vocabulary",
   pronunciation: "Pronunciation"
 };
+
+const ImmersionContext = createContext<ThaiSupportMode>("full");
+
+function ThaiHelp({ text, compact = false }: { text?: string; compact?: boolean }) {
+  const mode = useContext(ImmersionContext);
+  if (!text) return null;
+  if (mode === "full") return <div className={compact ? "thai" : "instruction"}>{text}</div>;
+
+  return (
+    <details className={compact ? "thai-help compact" : "thai-help"}>
+      <summary>{mode === "fallback" ? "Thai help" : "Need Thai help?"}</summary>
+      <div className={compact ? "thai" : "instruction"}>{text}</div>
+    </details>
+  );
+}
 
 function dayKey(date = new Date()) {
   return `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
@@ -288,7 +305,7 @@ function ExerciseCard({
   return (
     <div className="exercise">
       <div className="prompt">{exercise.prompt}</div>
-      {exercise.instructionThai ? <div className="instruction">{exercise.instructionThai}</div> : null}
+      <ThaiHelp text={exercise.instructionThai} />
       {exercise.seconds ? <div className="pill accent" style={{ marginTop: 8 }}>Target: {exercise.seconds}s</div> : null}
 
       {exercise.choices ? (
@@ -346,7 +363,7 @@ function ExerciseCard({
         <div className={`feedback ${!isObjective || result.correct ? "correct" : "incorrect"}`}>
           <strong>{!isObjective ? "Attempt saved — this open response is not auto-scored" : result.correct ? "Correct" : "Needs correction"}</strong>
           {isObjective && !result.correct && expectedAnswer(exercise) ? <>Target: {expectedAnswer(exercise)}</> : null}
-          {exercise.explanationThai ? <div>{exercise.explanationThai}</div> : null}
+          <ThaiHelp text={exercise.explanationThai} />
           {exercise.pattern ? <div><b>Pattern:</b> {exercise.pattern}</div> : null}
         </div>
       ) : null}
@@ -374,7 +391,7 @@ function VocabularyCard({
       <div className="lesson-header">
         <div>
           <h4>{item.wordOrChunk}</h4>
-          <div className="thai">{item.meaningThai}</div>
+          <ThaiHelp text={item.meaningThai} compact />
         </div>
         <SpeakButton text={item.wordOrChunk} rate={rate} />
       </div>
@@ -495,7 +512,7 @@ function ListeningCard({
       </div>
 
       <p><b>First listen:</b> {block.firstListenQuestion}</p>
-      <p className="muted small">ฟังก่อนโดยไม่เปิด transcript แล้วจับใจความรวม จากนั้นฟังรอบสองเพื่อเก็บรายละเอียด</p>
+      <ThaiHelp text="ฟังก่อนโดยไม่เปิด transcript แล้วจับใจความรวม จากนั้นฟังรอบสองเพื่อเก็บรายละเอียด" />
 
       <div className="audio-controls">
         <button className="btn small" onClick={() => setShowTranscript((value) => !value)} disabled={!completed}>
@@ -570,7 +587,7 @@ function CheckpointScorer({
   lockReason?: string;
 }) {
   const dimensions: { key: keyof CheckpointAttempt["scores"]; label: string }[] = [
-    { key: "speaking", label: "Speaking: range · accuracy · fluency · coherence" },
+    { key: "speaking", label: "Speaking: range · accuracy · fluency · coherence · intelligibility/pronunciation" },
     { key: "listening", label: "Listening: gist · detail · inference · attitude" },
     { key: "reading", label: "Reading: argument · inference · tone · synthesis" },
     { key: "writing", label: "Writing: organization · cohesion · precision · register" },
@@ -716,6 +733,8 @@ export function LearningApp() {
   const c1ExitListeningCompleted = c1Evidence.listeningCompleted;
   const c1ExitLongestSpeaking = c1Evidence.longestSpeakingSeconds;
   const c1ExitEvidenceComplete = c1Evidence.complete;
+  const immersionMode = useMemo(() => thaiSupportMode(lesson.cefrLevel, learner.settings.immersionLevel), [lesson.cefrLevel, learner.settings.immersionLevel]);
+  const pronunciationCompleted = pronunciationTrack.filter((_, index) => learner.completedActivityIds.includes(`pronunciation-${index}`)).length;
 
   const updateLearner = (fn: (prev: LearnerState) => LearnerState) => {
     setLearner((prev) => {
@@ -873,6 +892,36 @@ export function LearningApp() {
   };
 
 
+
+  const savePronunciationRecord = async (trackIndex: number, focus: string, duration: number, blob: Blob) => {
+    if (duration < 2) return;
+    const recordId = `pronunciation-${trackIndex}-${Date.now()}`;
+    try {
+      await saveRecordingBlob(recordId, blob);
+    } catch {
+      return;
+    }
+    updateLearner((prev) => {
+      const activityId = `pronunciation-${trackIndex}`;
+      const alreadyCompleted = prev.completedActivityIds.includes(activityId);
+      const record: SpeakingRecord = {
+        id: recordId,
+        lessonId: "pronunciation",
+        prompt: focus,
+        durationSeconds: duration,
+        createdAt: new Date().toISOString(),
+        selfRating: 3,
+        notes: "Pronunciation listen-record-compare practice; not counted as unscripted fluency evidence."
+      };
+      return {
+        ...todayStreak(prev),
+        speakingRecords: [record, ...prev.speakingRecords],
+        completedActivityIds: alreadyCompleted ? prev.completedActivityIds : [...prev.completedActivityIds, activityId],
+        xp: prev.xp + (alreadyCompleted ? 2 : 8)
+      };
+    });
+  };
+
   const saveBaselineSpeakingRecord = async (prompt: string, duration: number, blob: Blob) => {
     const recordId = `baseline-speaking-${Date.now()}`;
     try {
@@ -981,6 +1030,7 @@ export function LearningApp() {
           <>
             <PageTop kicker="Personal English OS" title="Today">
               <span className="pill">🔥 {learner.streak} day streak</span>
+              <span className="pill">{immersionLabel(immersionMode)}</span>
               <span className="pill accent">{learner.xp} XP</span>
             </PageTop>
 
@@ -1238,7 +1288,7 @@ export function LearningApp() {
                 {lesson.warmup.map((activity) => (
                   <div className="card activity-card" key={activity.id}>
                     <h3>{activity.title}</h3>
-                    {activity.instructionsThai ? <p>{activity.instructionsThai}</p> : null}
+                    <ThaiHelp text={activity.instructionsThai} />
                     {activity.exercises?.map((exercise) => (
                       <ExerciseCard key={exercise.id} exercise={exercise} result={learner.exerciseResults[exercise.id]} onSubmit={submitExercise} onSpeakingSaved={saveSpeakingRecord} />
                     ))}
@@ -1262,7 +1312,7 @@ export function LearningApp() {
                 {lesson.grammar.map((activity) => (
                   <div className="card activity-card" key={activity.id}>
                     <h3>{activity.title}</h3>
-                    {activity.explanationThai ? <p>{activity.explanationThai}</p> : null}
+                    <ThaiHelp text={activity.explanationThai} />
                     {activity.examples?.map((example) => <div className="example" key={example}>{example}</div>)}
                     <div className="section">
                       {activity.exercises?.map((exercise) => (
@@ -1314,7 +1364,7 @@ export function LearningApp() {
               <div className="section card card-pad">
                 <div className="kicker">Real-world mission · required evidence</div>
                 <h2>{lesson.realWorldMission}</h2>
-                <p className="small muted">ทำภารกิจจริงก่อน แล้วกดบันทึก ไม่ได้คะแนนจากการเปิดบทเฉย ๆ</p>
+                <ThaiHelp text="ทำภารกิจจริงก่อน แล้วกดบันทึก ไม่ได้คะแนนจากการเปิดบทเฉย ๆ" />
                 <button
                   className={`btn ${learner.completedActivityIds.includes(`${lesson.id}-mission`) ? "success" : "primary"}`}
                   onClick={markMissionComplete}
@@ -1385,7 +1435,7 @@ export function LearningApp() {
                     <div className="lesson-row" key={record.id}>
                       <div className="day-badge">{record.durationSeconds}s</div>
                       <div style={{ flex: 1 }}><h4>{record.prompt}</h4><p>{new Date(record.createdAt).toLocaleString()}</p><StoredRecording recordId={record.id} /></div>
-                      <span className="pill">{record.lessonId === "c1-exit-assessment" ? "C1 Exit" : record.lessonId === "baseline-retest" ? "Baseline" : `Day ${getAnyLesson(record.lessonId).day}`}</span>
+                      <span className="pill">{record.lessonId === "c1-exit-assessment" ? "C1 Exit" : record.lessonId === "baseline-retest" ? "Baseline" : record.lessonId === "pronunciation" ? "Pronunciation" : `Day ${getAnyLesson(record.lessonId).day}`}</span>
                     </div>
                   ))}
                 </div>
@@ -1393,18 +1443,38 @@ export function LearningApp() {
             </div>
 
             <div className="section card card-pad">
-              <SectionTitle title="Pronunciation track" subtitle="Practice sounds inside real phrases; intelligibility matters more than accent imitation." />
-              <div className="grid-2">
-                {pronunciationTrack.map((item) => (
-                  <div className="stat" key={`${item.level}-${item.focus}`}>
-                    <div className="label">{item.level}</div>
-                    <div className="value" style={{ fontSize: 18 }}>{item.focus}</div>
-                    <div className="sub">{item.goal}</div>
-                    <div className="top-actions" style={{ marginTop: 8 }}>
-                      {item.examples.map((example) => <span className="pill" key={example}>{example}</span>)}
+              <SectionTitle
+                title="Pronunciation practice"
+                subtitle="Listen → imitate → record → replay and compare. Practice recordings do not inflate unscripted speaking evidence."
+                right={<span className="pill accent">{pronunciationCompleted}/{pronunciationTrack.length} practiced</span>}
+              />
+              <ProgressBar value={pronunciationCompleted / pronunciationTrack.length * 100} />
+              <div className="grid-2 section">
+                {pronunciationTrack.map((item, index) => {
+                  const completed = learner.completedActivityIds.includes(`pronunciation-${index}`);
+                  return (
+                    <div className="stat" key={`${item.level}-${item.focus}`}>
+                      <div className="lesson-header">
+                        <div>
+                          <div className="label">{item.level}</div>
+                          <div className="value" style={{ fontSize: 18 }}>{item.focus}</div>
+                        </div>
+                        <span className={`pill ${completed ? "success" : ""}`}>{completed ? "Practiced" : "Practice"}</span>
+                      </div>
+                      <div className="sub">{item.goal}</div>
+                      <div className="stack" style={{ marginTop: 10 }}>
+                        {item.examples.map((example) => (
+                          <div className="lesson-header" key={example}>
+                            <span className="pill">{example}</span>
+                            <SpeakButton text={example.replaceAll("_", " ")} rate={Math.min(1, learner.settings.audioRate)} />
+                          </div>
+                        ))}
+                      </div>
+                      <p className="small muted">Listen twice, say the examples naturally, then record one short attempt and replay it before moving on.</p>
+                      <Recorder onSave={(duration, blob) => { void savePronunciationRecord(index, item.focus, duration, blob); }} />
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           </>
@@ -1455,7 +1525,7 @@ export function LearningApp() {
               {lesson.grammar.map((activity) => (
                 <div className="card activity-card" key={activity.id}>
                   <h3>{activity.title}</h3>
-                  <p>{activity.explanationThai}</p>
+                  <ThaiHelp text={activity.explanationThai} />
                   {activity.examples?.map((example) => <div className="example" key={example}>{example}</div>)}
                   <div className="section">
                     {activity.exercises?.map((exercise) => <ExerciseCard key={exercise.id} exercise={exercise} result={learner.exerciseResults[exercise.id]} onSubmit={submitExercise} />)}
@@ -1541,7 +1611,7 @@ export function LearningApp() {
                       <span className="pill">{record.category}</span>
                       <h3 style={{ marginBottom: 6 }}>Original: <code>{record.original}</code></h3>
                       <div><b>Corrected:</b> {record.corrected}</div>
-                      <p className="muted">{record.explanationThai}</p>
+                      <ThaiHelp text={record.explanationThai} />
                     </div>
                     <div className="stat" style={{ minWidth: 120 }}>
                       <div className="label">Recurrence</div>
@@ -1561,7 +1631,7 @@ export function LearningApp() {
             <div className="grid-4">
               <div className="stat"><div className="label">C1 pathway</div><div className="value">{overallProgramProgress}%</div><div className="sub">evidence-weighted progress, not a certificate</div></div>
               <div className="stat"><div className="label">Structured evidence</div><div className="value">{guidedHours.toFixed(1)}h</div><div className="sub">target band ≈ {totalProgramTargets.guidedHoursFloor}–{totalProgramTargets.guidedHoursTarget}h</div></div>
-              <div className="stat"><div className="label">Unscripted speaking</div><div className="value">{learner.evidence.unscriptedSpeakingMinutes.toFixed(1)}m</div><div className="sub">recorded practice · longest {Math.max(0, ...learner.speakingRecords.map((x) => x.durationSeconds))}s</div></div>
+              <div className="stat"><div className="label">Unscripted speaking</div><div className="value">{learner.evidence.unscriptedSpeakingMinutes.toFixed(1)}m</div><div className="sub">recorded fluency practice · longest eligible {longestReadinessSpeakingSeconds(learner.speakingRecords)}s</div></div>
               <div className="stat"><div className="label">Normal-speed listening</div><div className="value">{Math.round(learner.evidence.listeningAtNormalSpeedMinutes)}m</div><div className="sub">credited when lesson audio speed is ≥ 0.9×</div></div>
             </div>
 
@@ -1776,6 +1846,7 @@ export function LearningApp() {
                 <label className="small muted">Default listening speed: {learner.settings.audioRate.toFixed(2)}×</label>
                 <input className="field" type="range" min="0.6" max="1.25" step="0.05" value={learner.settings.audioRate} onChange={(event) => updateLearner((prev) => ({ ...prev, settings: { ...prev.settings, audioRate: Number(event.target.value) } }))} />
                 <p className="small muted">The course should gradually discourage permanent slow-speed listening.</p>
+                <p className="small muted">Current lesson language policy: <b>{immersionLabel(immersionMode)}</b>. Thai explanations are shown automatically only when the policy calls for full support; otherwise they remain available on demand.</p>
               </div>
             </div>
 
@@ -1801,6 +1872,7 @@ export function LearningApp() {
   })();
 
   return (
+    <ImmersionContext.Provider value={immersionMode}>
     <div className="app-shell">
       <aside className="sidebar">
         <div className="brand">
@@ -1831,5 +1903,6 @@ export function LearningApp() {
         ))}
       </nav>
     </div>
+    </ImmersionContext.Provider>
   );
 }
