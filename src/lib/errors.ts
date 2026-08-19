@@ -1,5 +1,13 @@
 import type { ErrorRecord } from "./types";
 
+export const ERROR_MASTERY_RESOLVED = 0.7;
+
+export function normalizeErrorMasteryScore(value: number): number {
+  if (!Number.isFinite(value)) return 0;
+  const normalized = value > 1 ? value / 100 : value;
+  return Math.max(0, Math.min(1, normalized));
+}
+
 export function upsertError(
   errorBank: ErrorRecord[],
   input: Omit<ErrorRecord, "id" | "firstSeenAt" | "lastSeenAt" | "recurrenceCount" | "masteryScore">
@@ -21,7 +29,7 @@ export function upsertError(
       severity: input.severity,
       lastSeenAt: now,
       recurrenceCount: copy[index].recurrenceCount + 1,
-      masteryScore: Math.max(0, copy[index].masteryScore - 0.08)
+      masteryScore: Math.max(0, normalizeErrorMasteryScore(copy[index].masteryScore) - 0.08)
     };
     return copy;
   }
@@ -46,7 +54,11 @@ export function upsertError(
 export function markErrorCorrect(errorBank: ErrorRecord[], id: string): ErrorRecord[] {
   return errorBank.map((record) =>
     record.id === id
-      ? { ...record, masteryScore: Math.min(1, record.masteryScore + 0.15), lastSeenAt: new Date().toISOString() }
+      ? {
+          ...record,
+          masteryScore: Math.min(1, normalizeErrorMasteryScore(record.masteryScore) + 0.15),
+          lastSeenAt: new Date().toISOString()
+        }
       : record
   );
 }
