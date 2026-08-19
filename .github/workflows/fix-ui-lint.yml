@@ -1,0 +1,38 @@
+name: Apply UI lint cleanup
+
+on:
+  push:
+    branches:
+      - chatgpt/production-hardening-core
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: ${{ !contains(github.event.head_commit.message, '[ui-lint-applied]') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+
+      - name: Apply exact lint cleanup
+        run: python scripts/fix-ui-lint.py
+
+      - name: Remove temporary tooling
+        run: |
+          rm scripts/fix-ui-lint.py
+          rm .github/workflows/fix-ui-lint.yml
+
+      - name: Commit cleanup
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "refactor(ui): finish lint-safe interaction state [ui-lint-applied]"
+          git push origin HEAD:${{ github.ref_name }}
