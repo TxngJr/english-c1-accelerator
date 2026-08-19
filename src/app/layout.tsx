@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { ReviewButtonFeedback } from "@/components/review-button-feedback";
 
 export const metadata: Metadata = {
   title: "English C1 Accelerator",
@@ -9,7 +10,10 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <ReviewButtonFeedback />
+        {children}
+      </body>
     </html>
   );
 }
