@@ -1,8 +1,11 @@
-import type { LearnerState } from "./types";
+import type { CEFR, LearnerState, Skill } from "./types";
 import { normalizeErrorMasteryScore } from "./errors.ts";
+import { clearStorageError, reportStorageError } from "./storage-status.ts";
 
 export const STORAGE_KEY = "english-c1-accelerator:v3-production";
 const LEGACY_KEYS = ["english-c1-accelerator:v2-personalized", "english-c1-accelerator:v1"];
+const CEFR_LEVELS: CEFR[] = ["A1", "A1+", "A2-", "A2", "A2+", "B1-", "B1", "B1+", "B2-", "B2", "B2+", "C1-", "C1"];
+const SKILLS: Skill[] = ["speaking", "listening", "reading", "writing", "grammarProduction", "grammarRecognition", "vocabulary", "pronunciation"];
 
 export const defaultState: LearnerState = {
   completedLessonIds: [],
@@ -120,7 +123,75 @@ export const defaultState: LearnerState = {
   }
 };
 
-function mergeState(parsed: Partial<LearnerState>): LearnerState {
+type UnknownRecord = Record<string, unknown>;
+
+function isRecord(value: unknown): value is UnknownRecord {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function assertArray(value: unknown, field: string): asserts value is unknown[] {
+  if (!Array.isArray(value)) throw new Error(`${field} must be an array.`);
+}
+
+function assertFiniteNumber(value: unknown, field: string, minimum = 0): asserts value is number {
+  if (typeof value !== "number" || !Number.isFinite(value) || value < minimum) {
+    throw new Error(`${field} must be a finite number >= ${minimum}.`);
+  }
+}
+
+function validateStateShape(input: unknown): Partial<LearnerState> {
+  if (!isRecord(input)) throw new Error("Learner state must be an object.");
+
+  for (const field of ["completedLessonIds", "completedActivityIds", "errorBank", "srsItems", "speakingRecords", "checkpointAttempts"] as const) {
+    if (input[field] !== undefined) assertArray(input[field], field);
+  }
+
+  if (input.currentLessonId !== undefined && typeof input.currentLessonId !== "string") {
+    throw new Error("currentLessonId must be a string.");
+  }
+
+  for (const field of ["xp", "streak", "weeklyMinutes", "masteredChunks"] as const) {
+    if (input[field] !== undefined) assertFiniteNumber(input[field], field);
+  }
+
+  if (input.exerciseResults !== undefined && !isRecord(input.exerciseResults)) {
+    throw new Error("exerciseResults must be an object.");
+  }
+
+  if (input.skillEstimates !== undefined) {
+    if (!isRecord(input.skillEstimates)) throw new Error("skillEstimates must be an object.");
+    for (const skill of SKILLS) {
+      const estimate = input.skillEstimates[skill];
+      if (estimate === undefined) continue;
+      if (!isRecord(estimate) || !CEFR_LEVELS.includes(estimate.level as CEFR)) {
+        throw new Error(`skillEstimates.${skill}.level is invalid.`);
+      }
+      assertFiniteNumber(estimate.progress, `skillEstimates.${skill}.progress`);
+      if ((estimate.progress as number) > 100) throw new Error(`skillEstimates.${skill}.progress must be <= 100.`);
+    }
+  }
+
+  if (input.evidence !== undefined && !isRecord(input.evidence)) {
+    throw new Error("evidence must be an object.");
+  }
+
+  if (input.settings !== undefined) {
+    if (!isRecord(input.settings)) throw new Error("settings must be an object.");
+    if (input.settings.theme !== undefined && !["light", "dark"].includes(String(input.settings.theme))) {
+      throw new Error("settings.theme is invalid.");
+    }
+    if (input.settings.immersionLevel !== undefined && !["thai-support", "balanced", "mostly-english"].includes(String(input.settings.immersionLevel))) {
+      throw new Error("settings.immersionLevel is invalid.");
+    }
+    if (input.settings.textScale !== undefined) assertFiniteNumber(input.settings.textScale, "settings.textScale", 0.5);
+    if (input.settings.audioRate !== undefined) assertFiniteNumber(input.settings.audioRate, "settings.audioRate", 0.25);
+  }
+
+  return input as Partial<LearnerState>;
+}
+
+export function migrateLearnerState(input: unknown): LearnerState {
+  const parsed = validateStateShape(input);
   return {
     ...defaultState,
     ...parsed,
@@ -146,25 +217,32 @@ function mergeState(parsed: Partial<LearnerState>): LearnerState {
 }
 
 function parseState(raw: string): LearnerState {
-  return mergeState(JSON.parse(raw) as Partial<LearnerState>);
+  return migrateLearnerState(JSON.parse(raw));
 }
 
 export function loadState(): LearnerState {
   if (typeof window === "undefined") return structuredClone(defaultState);
   try {
     const current = localStorage.getItem(STORAGE_KEY);
-    if (current) return parseState(current);
+    if (current) {
+      const state = parseState(current);
+      clearStorageError();
+      return state;
+    }
 
     for (const legacyKey of LEGACY_KEYS) {
       const legacy = localStorage.getItem(legacyKey);
       if (legacy) {
         const migrated = parseState(legacy);
         localStorage.setItem(STORAGE_KEY, JSON.stringify(migrated));
+        clearStorageError();
         return migrated;
       }
     }
+    clearStorageError();
     return structuredClone(defaultState);
-  } catch {
+  } catch (error) {
+    reportStorageError(error instanceof Error ? `Progress could not be loaded safely: ${error.message}` : "Progress could not be loaded safely.");
     return structuredClone(defaultState);
   }
 }
@@ -173,10 +251,16 @@ export function saveState(state: LearnerState): boolean {
   if (typeof window === "undefined") return false;
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    clearStorageError();
     return true;
-  } catch {
+  } catch (error) {
+    reportStorageError(error instanceof Error ? `Progress could not be saved: ${error.message}` : "Progress could not be saved.");
     return false;
   }
+}
+
+export function replaceStoredState(state: LearnerState): boolean {
+  return saveState(migrateLearnerState(state));
 }
 
 export function resetState(): LearnerState {
@@ -184,5 +268,6 @@ export function resetState(): LearnerState {
     localStorage.removeItem(STORAGE_KEY);
     for (const key of LEGACY_KEYS) localStorage.removeItem(key);
   }
+  clearStorageError();
   return structuredClone(defaultState);
 }

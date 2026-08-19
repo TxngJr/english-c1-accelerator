@@ -18,6 +18,7 @@ import { learnerProfile, personalizedStages, totalProgramTargets } from "@/conte
 import { clearRecordingBlobs, loadRecordingBlob, saveRecordingBlob } from "@/lib/audio-store";
 import { c1ExitEvidenceStatus } from "@/lib/c1-evidence";
 import { recordCheckpointAttempt } from "@/lib/checkpoints";
+import { DataManagement, StorageHealthBanner } from "@/components/data-management";
 import type { CheckpointAttempt, CheckpointLevel, Exercise, LearnerState, ListeningBlock, ReadingBlock, Skill, SpeakingRecord, SRSItem, VocabularyItem } from "@/lib/types";
 
 type Tab =
@@ -965,6 +966,8 @@ export function LearningApp() {
   };
 
   const reset = () => {
+    const approved = window.confirm("Reset all local progress and speaking recordings? Export a backup first if you may need this data later. This cannot be undone.");
+    if (!approved) return;
     void clearRecordingBlobs();
     const fresh = resetState();
     setLearner(fresh);
@@ -1785,8 +1788,12 @@ export function LearningApp() {
             </div>
 
             <div className="section card card-pad">
-              <SectionTitle title="Data" subtitle="Progress is stored in this browser." />
-              <button className="btn danger" onClick={reset}>Reset all local progress</button>
+              <SectionTitle title="Data & backup" subtitle="Protect long-term progress before changing browsers/devices or clearing site data." />
+              <DataManagement learner={learner} onImported={setLearner} />
+              <div className="section">
+                <div className="small muted">Danger zone</div>
+                <button className="btn danger" onClick={reset}>Reset all local progress</button>
+              </div>
             </div>
           </>
         );
@@ -1814,7 +1821,7 @@ export function LearningApp() {
         </div>
       </aside>
 
-      <main className="main">{content}</main>
+      <main className="main"><StorageHealthBanner />{content}</main>
 
       <nav className="mobile-nav">
         {nav.map((item) => (
