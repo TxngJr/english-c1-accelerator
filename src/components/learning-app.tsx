@@ -17,6 +17,7 @@ import { adaptivePrescription, checkpointPass, levelIndex, programProgress, read
 import { learnerProfile, personalizedStages, totalProgramTargets } from "@/content/personalized-program";
 import { clearRecordingBlobs, loadRecordingBlob, saveRecordingBlob } from "@/lib/audio-store";
 import { c1ExitEvidenceStatus } from "@/lib/c1-evidence";
+import { recordCheckpointAttempt } from "@/lib/checkpoints";
 import type { CheckpointAttempt, CheckpointLevel, Exercise, LearnerState, ListeningBlock, ReadingBlock, Skill, SpeakingRecord, SRSItem, VocabularyItem } from "@/lib/types";
 
 type Tab =
@@ -587,7 +588,8 @@ function CheckpointScorer({
   const [evaluatorName, setEvaluatorName] = useState("");
   const [notes, setNotes] = useState("");
   const passed = checkpointPass(scores, level);
-  const independentFinal = level !== "C1" || (evaluator !== "self" && evaluatorName.trim().length >= 2);
+  const hasEvaluatorIdentity = evaluator === "self" || evaluatorName.trim().length >= 2;
+  const verifiedPass = passed && evaluator === "teacher" && evaluatorName.trim().length >= 2;
 
   const save = () => {
     onSave({
@@ -609,10 +611,10 @@ function CheckpointScorer({
           <span className="pill accent">{level}</span>
           <strong>{level} rubric scoring</strong>
         </div>
-        <span className={`pill ${passed && independentFinal ? "success" : ""}`}>{passed ? (independentFinal ? "Rubric pass" : "Score passes · independent check required") : "Below gate"}</span>
+        <span className={`pill ${verifiedPass ? "success" : ""}`}>{verifiedPass ? "Verified rubric pass" : passed ? "Practice pass · verification required" : "Below gate"}</span>
       </summary>
       <p className="muted small">
-        Score the actual integrated checkpoint performance from 1–5. Self-rating is useful for practice, but final C1 readiness requires an independent qualified evaluator. A future connected AI evaluator can be enabled only when a real provider is configured.
+        Score the actual integrated checkpoint performance from 1–5. Self-rating is practice evidence only at every CEFR level and never promotes your CEFR estimate. Verified promotion requires an identified qualified human evaluator. A connected AI evaluator may be enabled later only when a real provider and evidence-verification flow exist.
       </p>
       <div className="stack">
         {dimensions.map(({ key, label }) => (
@@ -634,7 +636,7 @@ function CheckpointScorer({
         <label>
           <span className="small muted">Evaluator</span>
           <select className="field" value={evaluator} onChange={(event) => setEvaluator(event.target.value as CheckpointAttempt["evaluator"])}>
-            <option value="self">Self-assessment (practice evidence only for C1)</option>
+            <option value="self">Self-assessment (practice only · never promotes CEFR)</option>
             <option value="teacher">Teacher / qualified human evaluator</option>
           </select>
         </label>
@@ -657,8 +659,8 @@ function CheckpointScorer({
         </label>
       ) : null}
       {locked && lockReason ? <div className="feedback incorrect"><strong>Checkpoint locked.</strong>{lockReason}</div> : null}
-      {level === "C1" && evaluator !== "self" && evaluatorName.trim().length < 2 ? <div className="feedback incorrect"><strong>Evaluator identity required.</strong>Enter the independent assessor&apos;s name or identifier before saving final C1 evidence.</div> : null}
-      <button className="btn primary" onClick={save} disabled={locked || (level === "C1" && evaluator !== "self" && evaluatorName.trim().length < 2)}>Save {level} checkpoint evidence</button>
+      {evaluator !== "self" && !hasEvaluatorIdentity ? <div className="feedback incorrect"><strong>Evaluator identity required.</strong> Enter the independent assessor&apos;s name or identifier before saving verified evidence.</div> : null}
+      <button className="btn primary" onClick={save} disabled={locked || !hasEvaluatorIdentity}>Save {level} checkpoint evidence</button>
     </details>
   );
 }
@@ -959,34 +961,7 @@ export function LearningApp() {
   };
 
   const saveCheckpointAttempt = (attempt: CheckpointAttempt) => {
-    updateLearner((prev) => {
-      const next = {
-        ...prev,
-        checkpointAttempts: [attempt, ...prev.checkpointAttempts.filter((item) => item.id !== attempt.id)],
-        xp: prev.xp + (attempt.passed ? 120 : 35)
-      };
-      const independentlyVerified = attempt.evaluator === "teacher" && Boolean(attempt.evaluatorName?.trim());
-      if (!attempt.passed || !independentlyVerified) return next;
-
-      const promote = (skill: Skill) => {
-        const current = next.skillEstimates[skill];
-        if (levelIndex(current.level) >= levelIndex(attempt.level)) return current;
-        return { level: attempt.level, progress: 0 };
-      };
-
-      return {
-        ...next,
-        skillEstimates: {
-          ...next.skillEstimates,
-          speaking: promote("speaking"),
-          listening: promote("listening"),
-          reading: promote("reading"),
-          writing: promote("writing"),
-          grammarProduction: promote("grammarProduction"),
-          vocabulary: promote("vocabulary")
-        }
-      };
-    });
+    updateLearner((prev) => recordCheckpointAttempt(prev, attempt));
   };
 
   const reset = () => {

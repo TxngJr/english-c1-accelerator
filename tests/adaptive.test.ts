@@ -121,3 +121,33 @@ test("a valid independent C1 pass remains the readiness evidence even after late
   assert.equal(report.latestCheckpoint?.id, "independent-pass");
   assert.equal(report.blockers.some((blocker) => blocker.includes("Independent C1 validation")), false);
 });
+
+test("A2 readiness cannot be unlocked by self-scoring the rubric", () => {
+  const state = cloneState();
+  for (const skill of ["speaking", "listening", "writing", "grammarProduction", "vocabulary"] as const) {
+    state.skillEstimates[skill] = { level: "A2", progress: 20 };
+  }
+  state.skillEstimates.reading = { level: "A2", progress: 30 };
+  state.evidence.structuredMinutes = 140 * 60;
+  state.evidence.listeningAtNormalSpeedMinutes = 240;
+  state.speakingRecords = [{
+    id: "a2-speaking",
+    lessonId: "day-56",
+    prompt: "A2 checkpoint",
+    durationSeconds: 70,
+    createdAt: "2026-08-19T00:00:00.000Z",
+    selfRating: 4
+  }];
+  state.checkpointAttempts = [{
+    id: "a2-self",
+    level: "A2",
+    createdAt: "2026-08-19T00:00:00.000Z",
+    evaluator: "self",
+    passed: true,
+    scores: { speaking: 4, listening: 4, reading: 4, writing: 4, languageUse: 4, interaction: 4 }
+  }];
+
+  const report = readinessReport(state, "A2");
+  assert.equal(report.ready, false);
+  assert.ok(report.blockers.some((blocker) => blocker.includes("integrated checkpoint")));
+});
