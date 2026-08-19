@@ -23,7 +23,7 @@ export const defaultState: LearnerState = {
       firstSeenAt: "2026-08-19T00:00:00.000Z",
       lastSeenAt: "2026-08-19T00:00:00.000Z",
       recurrenceCount: 1,
-      masteryScore: 0.15
+      masteryScore: 15
     },
     {
       id: "baseline-past-simple",
@@ -35,7 +35,7 @@ export const defaultState: LearnerState = {
       firstSeenAt: "2026-08-19T00:00:00.000Z",
       lastSeenAt: "2026-08-19T00:00:00.000Z",
       recurrenceCount: 1,
-      masteryScore: 0.1
+      masteryScore: 10
     },
     {
       id: "baseline-interested-gerund",
@@ -47,7 +47,7 @@ export const defaultState: LearnerState = {
       firstSeenAt: "2026-08-19T00:00:00.000Z",
       lastSeenAt: "2026-08-19T00:00:00.000Z",
       recurrenceCount: 1,
-      masteryScore: 0.1
+      masteryScore: 10
     },
     {
       id: "baseline-learning-english",
@@ -59,7 +59,7 @@ export const defaultState: LearnerState = {
       firstSeenAt: "2026-08-19T00:00:00.000Z",
       lastSeenAt: "2026-08-19T00:00:00.000Z",
       recurrenceCount: 1,
-      masteryScore: 0.1
+      masteryScore: 10
     },
     {
       id: "baseline-programming-collocation",
@@ -71,7 +71,7 @@ export const defaultState: LearnerState = {
       firstSeenAt: "2026-08-19T00:00:00.000Z",
       lastSeenAt: "2026-08-19T00:00:00.000Z",
       recurrenceCount: 1,
-      masteryScore: 0.2
+      masteryScore: 20
     }
   ],
   srsItems: [],
