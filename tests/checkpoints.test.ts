@@ -50,7 +50,7 @@ test("teacher label without an assessor identifier cannot promote skills", () =>
   assert.equal(state.skillEstimates.speaking.level, defaultState.skillEstimates.speaking.level);
 });
 
-test("identified teacher pass promotes eligible skills but never downgrades stronger skills", () => {
+test("identified teacher pass promotes assessed skills including pronunciation without downgrading stronger skills", () => {
   const state = cloneState();
   state.skillEstimates.reading = { level: "B2+", progress: 30 };
   const item = attempt({ level: "B2", evaluator: "teacher", evaluatorName: "Assessor 01" });
@@ -60,7 +60,7 @@ test("identified teacher pass promotes eligible skills but never downgrades stro
   assert.equal(next.skillEstimates.speaking.level, "B2");
   assert.equal(next.skillEstimates.writing.level, "B2");
   assert.deepEqual(next.skillEstimates.reading, { level: "B2+", progress: 30 });
-  assert.equal(next.skillEstimates.pronunciation.level, state.skillEstimates.pronunciation.level);
+  assert.equal(next.skillEstimates.pronunciation.level, "B2");
 });
 
 test("invalid out-of-range rubric scores cannot remain a passing attempt", () => {
