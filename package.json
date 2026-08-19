@@ -13,6 +13,7 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "node --experimental-strip-types --test tests/*.test.ts",
+    "test:e2e": "playwright test",
     "validate:content": "node --experimental-strip-types scripts/validate-content.ts"
   },
   "dependencies": {
@@ -21,6 +22,7 @@
     "react-dom": "^19.2.7"
   },
   "devDependencies": {
+    "@playwright/test": "1.62.1",
     "@tailwindcss/postcss": "^4.3.0",
     "@types/node": "^22.15.30",
     "@types/react": "^19.2.0",
