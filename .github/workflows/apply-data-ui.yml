@@ -1,0 +1,32 @@
+name: Apply data resilience UI
+
+on:
+  push:
+    branches:
+      - chatgpt/data-resilience
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: ${{ !contains(github.event.head_commit.message, '[data-ui-applied]') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+      - run: python scripts/apply-data-ui.py
+      - run: |
+          rm scripts/apply-data-ui.py
+          rm .github/workflows/apply-data-ui.yml
+      - name: Commit migration
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "feat(data): expose backup restore and storage health [data-ui-applied]"
+          git push origin HEAD:${{ github.ref_name }}
