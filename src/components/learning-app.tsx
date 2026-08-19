@@ -1525,9 +1525,6 @@ export function LearningApp() {
                 {due.length ? (
                   <div className="stack">
                     {due.map((item) => <SrsReviewCard key={item.id} item={item} onGrade={gradeReview} />)}
-                        </div>
-                      </div>
-                    ))}
                   </div>
                 ) : <div className="empty">Nothing is due right now. Add vocabulary from the lesson or return later.</div>}
 
