@@ -1,111 +1,116 @@
 # English C1 Accelerator — Personalized Edition
 
-A local-first, speaking-first English learning system built specifically around this learner's diagnostic profile: practical A1+/early A2, speaking as the weakest skill, reading relatively stronger, passive grammar knowledge ahead of active production, and a long-term target of genuine CEFR C1 for university, software/IT work, presentations, international communication and advanced English use.
+A local-first, speaking-first English learning system designed around this learner's diagnostic profile: practical A1+/early A2, speaking as the weakest skill, stronger passive grammar recognition than active production, and a long-term target of genuine CEFR C1 for university, software/IT work, presentations, international communication and advanced English use.
 
-## What is now implemented
+The project treats CEFR progression as an evidence problem, not a lesson-completion badge. Finishing days, earning XP or self-rating a checkpoint cannot by themselves establish a CEFR level.
 
-### Full playable pathway
+## Course pathway
 
 - **224 playable study days**
-  - Days 1–14: fully authored accelerated foundation rebuild
+  - Days 1–14: accelerated foundation rebuild
   - Days 15–224: 30 modules × 7-day learning cycles from A2 through the C1 exit block
-- **~618.8 hours of structured curriculum** in the shipped pathway
-- **4,332 course exercises** + **34 full C1 exit-assessment tasks**
-- **6,341 uniquely identified lesson/content items** in the 224-day course
-- No duplicate content IDs in the validator
-- Every playable day contains retrieval, vocabulary/chunks, grammar production, listening, speaking, reading, writing, review and an exit check
+- **~618.8 hours** of scheduled structured curriculum
+- **4,332 course exercises** + **34 C1 exit-assessment tasks**
+- **6,341 uniquely identified lesson/content items**
+- Every playable day includes retrieval, vocabulary/chunks, grammar production, listening, speaking, reading, writing, review and an exit check.
 
-### Personalization for this learner
+The nominal structure is four 8-week stages, but evidence and mastery control progression:
 
-The system intentionally does **not** allocate equal time to every skill.
+1. Accelerated Foundation Rebuild — A1+/A2- → strong A2
+2. Functional Independence — A2 → B1
+3. Independent Advanced User — B1 → B2
+4. C1 Advanced Proficiency — B2 → C1
+
+## Personalized learning behavior
+
+The system intentionally does not allocate equal time to every skill.
 
 - Speaking receives the highest baseline weight.
 - Listening receives the second-highest weight.
-- Grammar **production** is weighted above grammar recognition because diagnostic evidence shows the learner can recognize some A2/B1 structures but still makes basic errors when producing language.
-- Recurring errors automatically raise the future practice weight for the affected category.
-- Programming, AI, software architecture, university, projects, gaming, travel and professional communication are used as recurring contexts while maintaining broad general-English coverage.
-- Thai support is useful early and deliberately fades toward English-first B2/C1 work.
+- Grammar production is weighted above recognition to convert passive knowledge into usable language.
+- Recurring Error Bank patterns raise future production/remediation priority.
+- Programming, AI, software architecture, university, projects, gaming, travel and professional communication recur as motivating contexts while broad general English remains mandatory.
+- Thai support now follows a CEFR-aware immersion policy: visible early, available on demand during transition, and English-first at higher levels.
 
-See `src/content/personalized-program.ts` and `docs/PERSONALIZED_C1_EXECUTION.md`.
+See `src/content/personalized-program.ts`, `src/lib/immersion.ts` and `docs/PERSONALIZED_C1_EXECUTION.md`.
 
-## Evidence-based progression instead of "finish lessons = C1"
+## Evidence-based progression
 
-The app separates:
+The app tracks separately:
 
-- course completion
-- skill estimates
+- completed lessons and activities
+- objective exercise attempts and accuracy
+- CEFR estimates by skill
 - structured workload evidence
 - unscripted speaking recordings
 - normal-speed listening exposure
-- recurring-error trends
-- A2 / B1 / B2 / C1 integrated checkpoints
+- recurring production errors
+- SRS retention/review history
+- A2 / B1 / B2 / C1 checkpoint attempts
+- independently verified checkpoint passes
 
-A CEFR level is not considered ready just because enough hours or lessons were completed.
+Important integrity rules include:
 
-The final **C1 readiness gate** requires:
-
-- all major skills near the C1 target profile
-- extended unscripted speaking evidence
-- natural-speed listening evidence
-- no uncontrolled recurring foundation error pattern
-- a passed integrated C1 checkpoint
-- **independent final scoring by a teacher / qualified evaluator**; self-rating alone cannot unlock final C1 readiness. A future AI evaluator is allowed only when a real provider is connected—not by selecting a label in the UI.
-
-This is intentionally stricter than the previous V1.
-
-## 32-week nominal structure
-
-The shipped course contains four 8-week blocks. These weeks are scheduling guidance only; mastery controls advancement.
-
-1. **Accelerated Foundation Rebuild** — A1+/A2- → strong A2
-2. **Functional Independence** — A2 → B1
-3. **Independent Advanced User** — B1 → B2
-4. **C1 Advanced Proficiency** — B2 → C1
-
-The learner can move faster when evidence is strong and should remain longer when a gate is weak.
+- CEFR progress rolls correctly across level boundaries instead of getting stuck at 99%.
+- Prerequisites are enforced in domain logic as well as the UI.
+- A lesson with listening material cannot complete until each required listening block has actually finished at an eligible speed.
+- Speaking evidence is credited only after the audio blob is successfully persisted.
+- Pronunciation and baseline-retake recordings do not inflate unscripted-fluency duration gates.
+- Error Bank mastery uses one 0–100 scale with migration for older state formats.
+- Self-scored checkpoint rubrics are practice evidence only and never promote CEFR estimates.
+- Verified CEFR promotion requires a passing checkpoint attributed to an identified qualified human evaluator.
 
 ## Core systems
 
-- Responsive dashboard and 13-section navigation
+- Responsive 13-section learning interface
 - 224-day lesson engine
-- Speaking ladder from short chunks to 6–8 minute C1 discussion
-- Browser audio recording/playback with recording blobs persisted locally in IndexedDB for later evidence review
-- Original listening materials + chunked browser Speech Synthesis for reliable long-form playback + speed control
-- Longer B2/C1 input progression (advanced reading/listening expands beyond the short A2/B1 format)
-- Full **C1 Exit Pack A**: 3 long original listening tasks, 2 demanding 1,200+ word readings, 4 speaking tasks and 3 writing/synthesis tasks
+- Speaking ladder from short chunks to extended C1 discussion
+- Browser microphone recording with IndexedDB persistence
+- Speaking history with replayable stored evidence
+- Pronunciation listen → imitate → record → replay practice
+- Long-form original listening scripts with chunked browser Speech Synthesis fallback and speed control
+- Transcript gating after first full listen
+- Longer B2/C1 reading and listening progression
+- Full C1 Exit Pack A: 3 long listening tasks, 2 demanding 1,200+ word readings, 4 speaking tasks and 3 writing/synthesis tasks
 - Production-first vocabulary/chunk work
-- Grammar in context rather than rule memorization
-- IT/programming English track
-- Real-world missions that must be explicitly marked complete; opening the lesson does not credit the mission
-- Personal Error Bank
-- SRS with multiple recall directions
-- Separate CEFR estimates by skill
+- SRS with typed retrieval, response-time evidence and multiple recall directions
+- Derived retained-item mastery instead of farmable mastery points
+- Personal Error Bank and targeted remediation
 - Adaptive daily time prescription
 - CEFR readiness reports with blockers
-- Integrated checkpoint rubric + attempt history
-- Objective accuracy separated from open performance: speaking/writing submissions are stored as evidence and do **not** automatically count as correct
-- Pronunciation progression for Thai learners
-- Local-first progress persistence with V1 migration
+- Verified checkpoint state transitions
+- Real-world missions that require explicit evidence
+- Local-first progress persistence with migration
+- Full progress backup/import including speaking audio
+- Storage-health warning when local persistence fails
+- Route/root error recovery boundaries
+
+## C1 exit integrity
+
+The final C1 rubric remains locked until the C1 Exit Pack has sufficient evidence, including all required tasks, all long listenings completed at normal speed, substantial recordings for every speaking task and at least one final speaking recording of 360 seconds.
+
+Even after those requirements are met, self-rating does not unlock C1. Final readiness still requires the broader skill/evidence profile and an independently verified C1 checkpoint.
 
 ## Requirements
 
-- Node.js 20.9+
+- **Node.js 22.6+**
 - npm
 - Modern browser
-- Microphone permission is strongly recommended because post-foundation lesson completion requires real speaking-record evidence
+- Microphone permission for speaking evidence
+- IndexedDB/localStorage enabled for normal local-first persistence
 
-The core course does not require a paid AI, speech-to-text or cloud API. A teacher / qualified independent evaluator is required for **final independent C1 validation**, not for normal course use. The code can support an AI evaluator later, but the current UI intentionally does not offer a fake "AI" option without a configured provider.
+The core learning path does not require a paid AI, speech-to-text service or cloud account. A teacher/qualified independent evaluator is required for verified CEFR checkpoint promotion in the current implementation.
 
-## Run
+## Run locally
 
 ```bash
-npm install
+npm ci
 npm run dev
 ```
 
 Open `http://localhost:3000`.
 
-## Validation
+## Required production verification
 
 ```bash
 npm test
@@ -115,38 +120,29 @@ npm run lint
 npm run build
 ```
 
-Validation completed in the generation environment:
+GitHub Actions also runs a production dependency audit before the test/build gate. Pull requests should not be merged while this verification is failing.
 
-- **19/19 logic tests passing**
-- **14 foundation lessons**
-- **30 post-foundation modules**
-- **210 generated playable post-foundation days**
-- **224 total playable days**
-- **~618.8 structured curriculum hours**
-- **4,332 course exercises**
-- **34 final C1 exit-assessment tasks**
-- **3 C1 listening recordings/scripts: 751 / 740 / 769 words**
-- **2 C1 reading texts: 1,214 / 1,307 words**
-- **6,341 course content items**
-- **0 duplicate content IDs**
-- **0 day-sequence errors**
-- **0 incomplete lessons**
-- **0 missing module-material banks**
+The repository has now been validated in a real GitHub Actions environment with dependency installation, domain tests, curriculum validation, TypeScript checking, ESLint and an actual Next.js production build. See `docs/BUILD_STATUS.md` and `.github/workflows/ci.yml` for the current gate.
 
-A real Next.js build still requires `npm install`. The generation environment could not reliably reach the npm registry, so the framework dependencies were not installed there. Logic/content validation does not depend on those downloads and was run successfully.
+## Data safety
 
-### Final C1 anti-shortcut lock
+Progress is local-first. Settings → Data & backup can export one versioned JSON backup containing validated learner state and speaking-audio evidence. Import validates the file before replacing current progress and protects against missing/duplicate recording evidence.
 
-The C1 rubric cannot be saved as final evidence until **all 34 C1 Exit Pack A tasks are submitted**, **all 3 long listening inputs finish at normal speed**, **all 4 speaking tasks have substantial recordings**, and at least one final-assessment speaking recording reaches **360 seconds**. Even then, a self-scored rubric cannot unlock C1. The readiness engine still requires the broader skill/evidence profile and an independently scored final checkpoint from an identified evaluator.
+Export a backup before changing browsers/devices, clearing site data or resetting progress.
+
+## Production-readiness status
+
+The project is materially hardened compared with the original V1, but it is **not yet declared fully production-complete**. Remaining work is tracked in `docs/PRODUCTION_READINESS.md` and currently includes browser-level E2E coverage, further component/module decomposition, richer lower-level integrated assessment material and broader real multi-speaker/accent listening assets beyond browser TTS fallback.
 
 ## Important interpretation
 
-This project is designed to provide a serious pathway to C1; it is not a magical guarantee that passive lesson completion creates C1 ability. The learner must actually perform the speaking, listening, reading, writing, review and real-world tasks. The app is deliberately built to prevent itself from declaring C1 from completion alone.
+This project is designed to provide a serious pathway toward C1; it cannot guarantee C1 from passive completion. The learner must actually perform the speaking, listening, reading, writing, review and real-world tasks. The application is deliberately designed to avoid declaring C1 merely because lessons were completed.
 
-See:
+See also:
 
-- `SPEC.md` — original full requirements
+- `SPEC.md` — original requirements
 - `docs/PERSONALIZED_C1_EXECUTION.md` — personalized execution model
 - `docs/C1_EVIDENCE_STANDARD.md` — final readiness standard
 - `docs/ASSESSMENT_SYSTEM.md` — assessment architecture
 - `docs/PROJECT_ARCHITECTURE.md` — application architecture
+- `docs/PRODUCTION_READINESS.md` — production release gate and remaining hardening work
