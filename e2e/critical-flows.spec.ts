@@ -91,12 +91,9 @@ test("self-scored A2 checkpoint stays practice-only in the real UI", async ({ pa
   await scorer.locator("summary").click();
   const sliders = scorer.locator('input[type="range"]');
   for (let index = 0; index < await sliders.count(); index += 1) {
-    await sliders.nth(index).evaluate((element) => {
-      const input = element as HTMLInputElement;
-      input.value = "4";
-      input.dispatchEvent(new Event("input", { bubbles: true }));
-      input.dispatchEvent(new Event("change", { bubbles: true }));
-    });
+    await sliders.nth(index).focus();
+    await page.keyboard.press("End");
+    await expect(sliders.nth(index)).toHaveValue("5");
   }
   await scorer.getByRole("button", { name: "Save A2 checkpoint evidence" }).click();
   await expect(page.getByText(/Passed rubric · self/).first()).toBeVisible();
