@@ -1,0 +1,38 @@
+name: Apply UI hardening migration
+
+on:
+  push:
+    branches:
+      - chatgpt/production-hardening-core
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: ${{ !contains(github.event.head_commit.message, '[ui-hardening-applied]') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+
+      - name: Apply exact source migration
+        run: python scripts/apply-ui-hardening.py
+
+      - name: Remove temporary migration tooling
+        run: |
+          rm scripts/apply-ui-hardening.py
+          rm .github/workflows/apply-ui-hardening.yml
+
+      - name: Commit migrated UI
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "refactor(ui): harden learning interactions [ui-hardening-applied]"
+          git push origin HEAD:${{ github.ref_name }}
