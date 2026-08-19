@@ -9,15 +9,15 @@ import { extendedModules } from "@/content/extended";
 import { pronunciationTrack } from "@/content/pronunciation";
 import { cefrAssessments } from "@/content/assessments";
 import { c1ExitListening, c1ExitReading, c1ExitSpeaking, c1ExitWriting } from "@/content/c1-exit-pack";
-import { adaptivePriority, bumpSkillEstimate, canCompleteLesson, checkExerciseAnswer, isObjectivelyScoredExercise, lessonAccuracy, recurringErrors } from "@/lib/mastery";
-import { createSrsItem, dueItems, scheduleReview, type ReviewGrade } from "@/lib/srs";
+import { adaptivePriority, bumpSkillEstimate, canCompleteLesson, canStartLesson, checkExerciseAnswer, isObjectivelyScoredExercise, lessonAccuracy, normalizeAnswer, recurringErrors } from "@/lib/mastery";
+import { createSrsItem, dueItems, masteredSrsCount, scheduleReview, type ReviewGrade } from "@/lib/srs";
 import { markErrorCorrect, upsertError } from "@/lib/errors";
 import { defaultState, loadState, resetState, saveState } from "@/lib/storage";
 import { adaptivePrescription, checkpointPass, levelIndex, programProgress, readinessReport, stageIdForDay } from "@/lib/adaptive";
 import { learnerProfile, personalizedStages, totalProgramTargets } from "@/content/personalized-program";
 import { clearRecordingBlobs, loadRecordingBlob, saveRecordingBlob } from "@/lib/audio-store";
 import { c1ExitEvidenceStatus } from "@/lib/c1-evidence";
-import type { CheckpointAttempt, CheckpointLevel, Exercise, LearnerState, ListeningBlock, ReadingBlock, Skill, SpeakingRecord, VocabularyItem } from "@/lib/types";
+import type { CheckpointAttempt, CheckpointLevel, Exercise, LearnerState, ListeningBlock, ReadingBlock, Skill, SpeakingRecord, SRSItem, VocabularyItem } from "@/lib/types";
 
 type Tab =
   | "today"
@@ -266,14 +266,8 @@ function ExerciseCard({
   onSpeakingSaved?: (exercise: Exercise, duration: number, blob: Blob) => void;
 }) {
   const [answer, setAnswer] = useState("");
-  const [startedAt, setStartedAt] = useState<number>(() => Date.now());
+  const [startedAt] = useState<number>(() => Date.now());
   const [showModel, setShowModel] = useState(false);
-
-  useEffect(() => {
-    setAnswer("");
-    setStartedAt(Date.now());
-    setShowModel(false);
-  }, [exercise.id]);
 
   const isSpeaking = ["speaking-prompt", "shadowing", "timed-response"].includes(exercise.type);
   const isLong = ["free-writing", "summary", "argumentation", "paraphrasing"].includes(exercise.type) || isSpeaking;
@@ -365,10 +359,12 @@ function ExerciseCard({
 function VocabularyCard({
   item,
   rate,
+  isInReview,
   onAddReview
 }: {
   item: VocabularyItem;
   rate: number;
+  isInReview: boolean;
   onAddReview: (item: VocabularyItem) => void;
 }) {
   return (
@@ -384,7 +380,87 @@ function VocabularyCard({
       {item.examples.slice(0, 2).map((example) => <div className="example" key={example}>{example}</div>)}
       {item.collocations?.length ? <p className="small"><b>Chunks:</b> {item.collocations.join(" · ")}</p> : null}
       {item.commonMistakes?.length ? <p className="small"><b>Avoid:</b> {item.commonMistakes.join(" · ")}</p> : null}
-      <button className="btn small" onClick={() => onAddReview(item)}>＋ Add to review</button>
+      <button
+        className={`btn small ${isInReview ? "success" : ""}`}
+        onClick={() => onAddReview(item)}
+        disabled={isInReview}
+        aria-pressed={isInReview}
+      >
+        {isInReview ? "✓ Added to review" : "＋ Add to review"}
+      </button>
+    </div>
+  );
+}
+
+
+function SrsReviewCard({
+  item,
+  onGrade
+}: {
+  item: SRSItem;
+  onGrade: (id: string, grade: ReviewGrade, responseMs: number) => void;
+}) {
+  const [answer, setAnswer] = useState("");
+  const [submitted, setSubmitted] = useState(false);
+  const [startedAt] = useState(() => Date.now());
+  const [responseMs, setResponseMs] = useState<number>();
+  const correct = submitted && normalizeAnswer(answer) === normalizeAnswer(item.answer);
+
+  const submitRecall = () => {
+    if (!answer.trim()) return;
+    setResponseMs(Math.max(1, Date.now() - startedAt));
+    setSubmitted(true);
+  };
+
+  const directionLabel: Record<SRSItem["direction"], string> = {
+    "thai-to-english": "Thai → English",
+    "english-to-meaning": "English → meaning",
+    "fill-blank": "Fill the blank",
+    speak: "Speak",
+    create: "Create a sentence"
+  };
+
+  return (
+    <div className="exercise">
+      <div className="small muted">{directionLabel[item.direction]}</div>
+      <div className="prompt">{item.prompt}</div>
+      <input
+        value={answer}
+        onChange={(event) => setAnswer(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") submitRecall();
+        }}
+        placeholder="Recall first, then check..."
+        disabled={submitted}
+      />
+      {!submitted ? (
+        <button className="btn primary small" onClick={submitRecall} disabled={!answer.trim()}>
+          Check recall
+        </button>
+      ) : (
+        <>
+          <div className={`feedback ${correct ? "correct" : "incorrect"}`}>
+            <strong>{correct ? "Correct recall" : "Compare and correct"}</strong>
+            Target: {item.answer}
+          </div>
+          <div className="choice-wrap">
+            {([1, 3, 4, 5] as ReviewGrade[]).map((grade) => {
+              const blocked = !correct && grade >= 4;
+              return (
+                <button
+                  className="choice"
+                  key={grade}
+                  disabled={blocked}
+                  onClick={() => onGrade(item.id, grade, responseMs ?? 1)}
+                >
+                  {grade === 1 ? "Forgot" : grade === 3 ? "Hard" : grade === 4 ? "Good" : "Easy"}
+                </button>
+              );
+            })}
+          </div>
+          <div className="small muted">Response time: {((responseMs ?? 0) / 1000).toFixed(1)}s</div>
+        </>
+      )}
     </div>
   );
 }
@@ -394,13 +470,15 @@ function ListeningCard({
   rate,
   results,
   onSubmit,
-  onListeningFinished
+  onListeningFinished,
+  completed = false
 }: {
   block: ListeningBlock;
   rate: number;
   results: LearnerState["exerciseResults"];
   onSubmit: (exercise: Exercise, answer: string, responseMs?: number) => void;
   onListeningFinished?: (block: ListeningBlock) => void;
+  completed?: boolean;
 }) {
   const [showTranscript, setShowTranscript] = useState(false);
 
@@ -418,8 +496,8 @@ function ListeningCard({
       <p className="muted small">ฟังก่อนโดยไม่เปิด transcript แล้วจับใจความรวม จากนั้นฟังรอบสองเพื่อเก็บรายละเอียด</p>
 
       <div className="audio-controls">
-        <button className="btn small" onClick={() => setShowTranscript((value) => !value)}>
-          {showTranscript ? "Hide transcript" : "Third listen: show transcript"}
+        <button className="btn small" onClick={() => setShowTranscript((value) => !value)} disabled={!completed}>
+          {!completed ? "Finish first listen to unlock transcript" : showTranscript ? "Hide transcript" : "Third listen: show transcript"}
         </button>
       </div>
 
@@ -579,7 +657,7 @@ function CheckpointScorer({
         </label>
       ) : null}
       {locked && lockReason ? <div className="feedback incorrect"><strong>Checkpoint locked.</strong>{lockReason}</div> : null}
-      {level === "C1" && evaluator !== "self" && evaluatorName.trim().length < 2 ? <div className="feedback incorrect"><strong>Evaluator identity required.</strong>Enter the independent assessor's name or identifier before saving final C1 evidence.</div> : null}
+      {level === "C1" && evaluator !== "self" && evaluatorName.trim().length < 2 ? <div className="feedback incorrect"><strong>Evaluator identity required.</strong>Enter the independent assessor&apos;s name or identifier before saving final C1 evidence.</div> : null}
       <button className="btn primary" onClick={save} disabled={locked || (level === "C1" && evaluator !== "self" && evaluatorName.trim().length < 2)}>Save {level} checkpoint evidence</button>
     </details>
   );
@@ -591,8 +669,11 @@ export function LearningApp() {
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
-    setLearner(loadState());
-    setHydrated(true);
+    const frame = window.requestAnimationFrame(() => {
+      setLearner(loadState());
+      setHydrated(true);
+    });
+    return () => window.cancelAnimationFrame(frame);
   }, []);
 
   useEffect(() => {
@@ -641,6 +722,8 @@ export function LearningApp() {
   };
 
   const selectLesson = (lessonId: string) => {
+    const targetLesson = getAnyLesson(lessonId);
+    if (!canStartLesson(learner, targetLesson)) return;
     updateLearner((prev) => ({ ...prev, currentLessonId: lessonId }));
     setTab("lesson");
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -705,13 +788,16 @@ export function LearningApp() {
     });
   };
 
-  const gradeReview = (id: string, grade: ReviewGrade) => {
-    updateLearner((prev) => ({
-      ...prev,
-      srsItems: prev.srsItems.map((item) => item.id === id ? scheduleReview(item, grade) : item),
-      masteredChunks: prev.masteredChunks + (grade >= 4 ? 1 : 0),
-      xp: prev.xp + (grade >= 4 ? 8 : 3)
-    }));
+  const gradeReview = (id: string, grade: ReviewGrade, responseMs: number) => {
+    updateLearner((prev) => {
+      const srsItems = prev.srsItems.map((item) => item.id === id ? scheduleReview(item, grade, responseMs) : item);
+      return {
+        ...prev,
+        srsItems,
+        masteredChunks: masteredSrsCount(srsItems),
+        xp: prev.xp + (grade >= 4 ? 8 : 3)
+      };
+    });
   };
 
   const markLessonListeningFinished = (block: ListeningBlock) => {
@@ -725,9 +811,13 @@ export function LearningApp() {
     updateLearner((prev) => prev.completedActivityIds.includes(id) ? prev : { ...prev, completedActivityIds: [...prev.completedActivityIds, id], xp: prev.xp + 10 });
   };
 
-  const saveSpeakingRecord = (exercise: Exercise, duration: number, blob: Blob) => {
+  const saveSpeakingRecord = async (exercise: Exercise, duration: number, blob: Blob) => {
     const recordId = `speaking-${Date.now()}`;
-    void saveRecordingBlob(recordId, blob).catch(() => undefined);
+    try {
+      await saveRecordingBlob(recordId, blob);
+    } catch {
+      return;
+    }
     updateLearner((prev) => {
       const record: SpeakingRecord = {
         id: recordId,
@@ -751,9 +841,13 @@ export function LearningApp() {
     });
   };
 
-  const saveAssessmentSpeakingRecord = (exercise: Exercise, duration: number, blob: Blob) => {
+  const saveAssessmentSpeakingRecord = async (exercise: Exercise, duration: number, blob: Blob) => {
     const recordId = `c1-speaking-${Date.now()}`;
-    void saveRecordingBlob(recordId, blob).catch(() => undefined);
+    try {
+      await saveRecordingBlob(recordId, blob);
+    } catch {
+      return;
+    }
     updateLearner((prev) => {
       const record: SpeakingRecord = {
         id: recordId,
@@ -773,6 +867,28 @@ export function LearningApp() {
         xp: prev.xp + Math.min(30, Math.max(5, Math.round(duration / 5)))
       };
     });
+  };
+
+
+  const saveBaselineSpeakingRecord = async (prompt: string, duration: number, blob: Blob) => {
+    const recordId = `baseline-speaking-${Date.now()}`;
+    try {
+      await saveRecordingBlob(recordId, blob);
+    } catch {
+      return;
+    }
+    updateLearner((prev) => ({
+      ...todayStreak(prev),
+      speakingRecords: [{
+        id: recordId,
+        lessonId: "baseline-retest",
+        prompt,
+        durationSeconds: duration,
+        createdAt: new Date().toISOString(),
+        selfRating: 3
+      }, ...prev.speakingRecords],
+      xp: prev.xp + 5
+    }));
   };
 
   const markMissionComplete = () => {
@@ -849,7 +965,8 @@ export function LearningApp() {
         checkpointAttempts: [attempt, ...prev.checkpointAttempts.filter((item) => item.id !== attempt.id)],
         xp: prev.xp + (attempt.passed ? 120 : 35)
       };
-      if (!attempt.passed || (attempt.level === "C1" && (attempt.evaluator === "self" || !attempt.evaluatorName?.trim()))) return next;
+      const independentlyVerified = attempt.evaluator === "teacher" && Boolean(attempt.evaluatorName?.trim());
+      if (!attempt.passed || !independentlyVerified) return next;
 
       const promote = (skill: Skill) => {
         const current = next.skillEstimates[skill];
@@ -891,7 +1008,7 @@ export function LearningApp() {
 
             <div className="card hero">
               <div>
-                <div className="kicker">Today's mission · Day {lesson.day}</div>
+                <div className="kicker">Today&apos;s mission · Day {lesson.day}</div>
                 <h2>{lesson.title}</h2>
                 <p>
                   {lesson.focus}. Your priority is not memorizing more rules — it is turning useful English into
@@ -1028,14 +1145,14 @@ export function LearningApp() {
               <SectionTitle title="First 14 days" subtitle="Complete learning block — not placeholder lessons." />
               <div className="lesson-list">
                 {lessons.map((item) => (
-                  <button key={item.id} className="lesson-row" onClick={() => selectLesson(item.id)}>
+                  <button key={item.id} className="lesson-row" onClick={() => selectLesson(item.id)} disabled={!canStartLesson(learner, item)}>
                     <div className="day-badge">{item.day}</div>
                     <div style={{ textAlign: "left" }}>
                       <h4>{item.title}</h4>
                       <p>{item.focus} · {item.estimatedMinutes} min · {item.cefrLevel}</p>
                     </div>
                     <span className={`pill ${learner.completedLessonIds.includes(item.id) ? "success" : ""}`}>
-                      {learner.completedLessonIds.includes(item.id) ? "Completed" : "Open"}
+                      {learner.completedLessonIds.includes(item.id) ? "Completed" : canStartLesson(learner, item) ? "Open" : "Locked"}
                     </span>
                   </button>
                 ))}
@@ -1095,7 +1212,7 @@ export function LearningApp() {
                   const ids = Array.from({ length: 7 }, (_, offset) => `ext-day-${startDay + offset}`);
                   const completed = ids.filter((id) => learner.completedLessonIds.includes(id)).length;
                   return (
-                    <button className="lesson-row" key={module.id} onClick={() => selectLesson(`ext-day-${startDay}`)}>
+                    <button className="lesson-row" key={module.id} onClick={() => selectLesson(`ext-day-${startDay}`)} disabled={!canStartLesson(learner, getAnyLesson(`ext-day-${startDay}`))}>
                       <div className="day-badge">{startDay}–{endDay}</div>
                       <div style={{ textAlign: "left" }}>
                         <h4>{module.level} · {module.title}</h4>
@@ -1156,7 +1273,7 @@ export function LearningApp() {
               <SectionTitle title="2. Vocabulary & chunks" subtitle="Learn usable phrases, not isolated translations." />
               <div className="vocab-grid">
                 {lesson.vocabulary.map((item) => (
-                  <VocabularyCard key={item.id} item={item} rate={learner.settings.audioRate} onAddReview={addVocabularyReview} />
+                  <VocabularyCard key={item.id} item={item} rate={learner.settings.audioRate} isInReview={learner.srsItems.some((srs) => srs.sourceId === item.id)} onAddReview={addVocabularyReview} />
                 ))}
               </div>
             </div>
@@ -1183,7 +1300,7 @@ export function LearningApp() {
               <SectionTitle title="4. Listening" subtitle="First listen → details → transcript → final listen." />
               <div className="stack">
                 {lesson.listening.map((block) => (
-                  <ListeningCard key={block.id} block={block} rate={learner.settings.audioRate} results={learner.exerciseResults} onSubmit={submitExercise} onListeningFinished={markLessonListeningFinished} />
+                  <ListeningCard key={block.id} block={block} rate={learner.settings.audioRate} results={learner.exerciseResults} onSubmit={submitExercise} onListeningFinished={markLessonListeningFinished} completed={learner.completedActivityIds.includes(`${lesson.id}-listening-${block.id}`)} />
                 ))}
               </div>
             </div>
@@ -1290,7 +1407,7 @@ export function LearningApp() {
                     <div className="lesson-row" key={record.id}>
                       <div className="day-badge">{record.durationSeconds}s</div>
                       <div style={{ flex: 1 }}><h4>{record.prompt}</h4><p>{new Date(record.createdAt).toLocaleString()}</p><StoredRecording recordId={record.id} /></div>
-                      <span className="pill">{record.lessonId === "c1-exit-assessment" ? "C1 Exit" : `Day ${getAnyLesson(record.lessonId).day}`}</span>
+                      <span className="pill">{record.lessonId === "c1-exit-assessment" ? "C1 Exit" : record.lessonId === "baseline-retest" ? "Baseline" : `Day ${getAnyLesson(record.lessonId).day}`}</span>
                     </div>
                   ))}
                 </div>
@@ -1325,7 +1442,7 @@ export function LearningApp() {
               <p className="muted">Use the four-pass method: gist without transcript → details → transcript + connected speech → final listen without transcript.</p>
             </div>
             <div className="section stack">
-              {lesson.listening.map((block) => <ListeningCard key={block.id} block={block} rate={learner.settings.audioRate} results={learner.exerciseResults} onSubmit={submitExercise} onListeningFinished={markLessonListeningFinished} />)}
+              {lesson.listening.map((block) => <ListeningCard key={block.id} block={block} rate={learner.settings.audioRate} results={learner.exerciseResults} onSubmit={submitExercise} onListeningFinished={markLessonListeningFinished} completed={learner.completedActivityIds.includes(`${lesson.id}-listening-${block.id}`)} />)}
             </div>
           </>
         );
@@ -1341,7 +1458,7 @@ export function LearningApp() {
               <p className="muted">Priority: Thai → English retrieval, collocations, complete sentences and speaking. English → Thai recognition alone does not count as mastery.</p>
             </div>
             <div className="section vocab-grid">
-              {lesson.vocabulary.map((item) => <VocabularyCard key={item.id} item={item} rate={learner.settings.audioRate} onAddReview={addVocabularyReview} />)}
+              {lesson.vocabulary.map((item) => <VocabularyCard key={item.id} item={item} rate={learner.settings.audioRate} isInReview={learner.srsItems.some((srs) => srs.sourceId === item.id)} onAddReview={addVocabularyReview} />)}
             </div>
           </>
         );
@@ -1407,23 +1524,7 @@ export function LearningApp() {
                 <SectionTitle title="SRS queue" subtitle="Grade recall quality, confidence and speed." />
                 {due.length ? (
                   <div className="stack">
-                    {due.map((item) => (
-                      <div className="exercise" key={item.id}>
-                        <div className="small muted">Thai → English</div>
-                        <div className="prompt">{item.prompt}</div>
-                        <details style={{ marginTop: 8 }}>
-                          <summary className="btn small">Reveal answer</summary>
-                          <div className="feedback correct">{item.answer}</div>
-                        </details>
-                        <div className="choice-wrap">
-                          {([1, 3, 4, 5] as ReviewGrade[]).map((grade) => (
-                            <button className="choice" key={grade} onClick={() => gradeReview(item.id, grade)}>
-                              {grade === 1 ? "Forgot" : grade === 3 ? "Hard" : grade === 4 ? "Good" : "Easy"}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
+                    {due.map((item) => <SrsReviewCard key={item.id} item={item} onGrade={gradeReview} />)}
                   </div>
                 ) : <div className="empty">Nothing is due right now. Add vocabulary from the lesson or return later.</div>}
 
@@ -1566,7 +1667,7 @@ export function LearningApp() {
                   <div className="exercise" key={prompt}>
                     <div className="small muted">Baseline {index + 1}</div>
                     <div className="prompt">{prompt}</div>
-                    <Recorder />
+                    <Recorder onSave={(duration, blob) => { void saveBaselineSpeakingRecord(prompt, duration, blob); }} />
                   </div>
                 ))}
               </div>
@@ -1600,7 +1701,7 @@ export function LearningApp() {
                 <p className="muted small">First listen with the transcript hidden. Do not slow the first attempt. Complete gist, detail, inference, stance and synthesis tasks.</p>
                 <div className="stack">
                   {c1ExitListening.map((block) => (
-                    <ListeningCard key={block.id} block={block} rate={Math.max(1, learner.settings.audioRate)} results={learner.exerciseResults} onSubmit={submitExercise} onListeningFinished={markC1ListeningFinished} />
+                    <ListeningCard key={block.id} block={block} rate={Math.max(1, learner.settings.audioRate)} results={learner.exerciseResults} onSubmit={submitExercise} onListeningFinished={markC1ListeningFinished} completed={learner.completedActivityIds.includes(`c1-exit-listening-${block.id}`)} />
                   ))}
                 </div>
               </details>
@@ -1741,7 +1842,7 @@ export function LearningApp() {
       <main className="main">{content}</main>
 
       <nav className="mobile-nav">
-        {nav.slice(0, 6).map((item) => (
+        {nav.map((item) => (
           <button key={item.id} className={`nav-button ${tab === item.id ? "active" : ""}`} onClick={() => setTab(item.id)}>
             <span className="nav-icon">{item.icon}</span>{item.label}
           </button>

@@ -1,5 +1,14 @@
 import type { ErrorRecord } from "./types";
 
+export const ERROR_MASTERY_RESOLVED = 70;
+
+/** Normalize all historical Error Bank values onto one 0–100 scale. */
+export function normalizeErrorMasteryScore(value: number): number {
+  if (!Number.isFinite(value)) return 0;
+  const normalized = value >= 0 && value <= 1 ? value * 100 : value;
+  return Math.max(0, Math.min(100, normalized));
+}
+
 export function upsertError(
   errorBank: ErrorRecord[],
   input: Omit<ErrorRecord, "id" | "firstSeenAt" | "lastSeenAt" | "recurrenceCount" | "masteryScore">
@@ -21,7 +30,7 @@ export function upsertError(
       severity: input.severity,
       lastSeenAt: now,
       recurrenceCount: copy[index].recurrenceCount + 1,
-      masteryScore: Math.max(0, copy[index].masteryScore - 0.08)
+      masteryScore: Math.max(0, normalizeErrorMasteryScore(copy[index].masteryScore) - 8)
     };
     return copy;
   }
@@ -37,7 +46,7 @@ export function upsertError(
       firstSeenAt: now,
       lastSeenAt: now,
       recurrenceCount: 1,
-      masteryScore: 0.2
+      masteryScore: 20
     },
     ...errorBank
   ];
@@ -46,7 +55,11 @@ export function upsertError(
 export function markErrorCorrect(errorBank: ErrorRecord[], id: string): ErrorRecord[] {
   return errorBank.map((record) =>
     record.id === id
-      ? { ...record, masteryScore: Math.min(1, record.masteryScore + 0.15), lastSeenAt: new Date().toISOString() }
+      ? {
+          ...record,
+          masteryScore: Math.min(100, normalizeErrorMasteryScore(record.masteryScore) + 15),
+          lastSeenAt: new Date().toISOString()
+        }
       : record
   );
 }

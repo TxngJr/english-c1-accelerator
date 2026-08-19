@@ -52,15 +52,19 @@ function objectiveExercises(lesson: Lesson): Exercise[] {
 }
 
 export function lessonAccuracy(state: LearnerState, lesson: Lesson): number {
-  // Open speaking/writing tasks are evidence of completion, not automatically "correct".
-  // Accuracy is calculated only from items with a deterministic answer key.
   const objective = objectiveExercises(lesson);
   const results = objective.map((exercise) => state.exerciseResults[exercise.id]).filter(Boolean);
   if (!results.length) return 0;
   return results.reduce((sum, result) => sum + result.score, 0) / results.length;
 }
 
+export function canStartLesson(state: LearnerState, lesson: Lesson): boolean {
+  return lesson.prerequisites.every((prerequisiteId) => state.completedLessonIds.includes(prerequisiteId));
+}
+
 export function canCompleteLesson(state: LearnerState, lesson: Lesson): boolean {
+  if (!canStartLesson(state, lesson)) return false;
+
   const ids = lessonExerciseIds(lesson);
   const attempted = ids.filter((id) => Boolean(state.exerciseResults[id])).length;
   const attemptCoverage = ids.length ? attempted / ids.length : 0;
@@ -96,8 +100,6 @@ export function canCompleteLesson(state: LearnerState, lesson: Lesson): boolean 
     ? productionResults.reduce((sum, result) => sum + result.score, 0) / productionResults.length
     : accuracy;
 
-  // Speaking-first evidence. The browser recorder is local/free; higher-level days
-  // require a real timed sample so clicking "completed" cannot masquerade as fluency.
   const records = state.speakingRecords.filter((record) => record.lessonId === lesson.id);
   const longest = Math.max(0, ...records.map((record) => record.durationSeconds));
   const isExtended = lesson.day >= 15;
@@ -112,6 +114,9 @@ export function canCompleteLesson(state: LearnerState, lesson: Lesson): boolean 
         : Math.min(20, Math.max(10, Math.round(targetSpeaking * 0.25)));
   const speakingEvidence = longest >= requiredRecordedSeconds;
 
+  const listeningEvidence = lesson.listening.every((block) =>
+    state.completedActivityIds.includes(`${lesson.id}-listening-${block.id}`)
+  );
   const missionEvidence = !lesson.realWorldMission || state.completedActivityIds.includes(`${lesson.id}-mission`);
   const productionFloor = lesson.masteryCriteria.minimumProductionAccuracy ?? lesson.masteryCriteria.minimumAccuracy;
 
@@ -120,6 +125,7 @@ export function canCompleteLesson(state: LearnerState, lesson: Lesson): boolean 
     componentCoverage &&
     objectiveAttempted &&
     speakingEvidence &&
+    listeningEvidence &&
     missionEvidence &&
     attemptCoverage >= 0.78 &&
     accuracy >= lesson.masteryCriteria.minimumAccuracy &&
@@ -133,26 +139,30 @@ export function bumpSkillEstimate(
   score: number
 ): LearnerState {
   const current = state.skillEstimates[skill];
-  // Skill estimates should move slowly from objective evidence. Daily practice is not a CEFR exam.
-  // A correct item adds about 0.7 progress points; a failed item removes more, so repeated
-  // recognition-only success cannot race the learner through levels.
   let progress = current.progress + (score >= 1 ? 0.7 : -1.4);
-  let level = current.level;
-  const idx = levelOrder.indexOf(level);
+  let idx = Math.max(0, levelOrder.indexOf(current.level));
 
-  if (progress >= 100 && idx < levelOrder.length - 1) {
-    level = levelOrder[idx + 1];
-    progress = progress - 100;
-  } else if (progress < 0 && idx > 0) {
-    level = levelOrder[idx - 1];
-    progress = 100 + progress;
+  while (progress >= 100 && idx < levelOrder.length - 1) {
+    progress -= 100;
+    idx += 1;
   }
+
+  while (progress < 0 && idx > 0) {
+    progress += 100;
+    idx -= 1;
+  }
+
+  if (idx === levelOrder.length - 1) progress = Math.min(99.99, progress);
+  if (idx === 0) progress = Math.max(0, progress);
 
   return {
     ...state,
     skillEstimates: {
       ...state.skillEstimates,
-      [skill]: { level, progress: Math.max(0, Math.min(99, progress)) }
+      [skill]: {
+        level: levelOrder[idx],
+        progress: Math.round(Math.max(0, Math.min(99.99, progress)) * 100) / 100
+      }
     }
   };
 }

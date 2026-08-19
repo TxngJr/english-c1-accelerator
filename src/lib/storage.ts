@@ -1,7 +1,8 @@
 import type { LearnerState } from "./types";
+import { normalizeErrorMasteryScore } from "./errors.ts";
 
-export const STORAGE_KEY = "english-c1-accelerator:v2-personalized";
-const LEGACY_KEYS = ["english-c1-accelerator:v1"];
+export const STORAGE_KEY = "english-c1-accelerator:v3-production";
+const LEGACY_KEYS = ["english-c1-accelerator:v2-personalized", "english-c1-accelerator:v1"];
 
 export const defaultState: LearnerState = {
   completedLessonIds: [],
@@ -123,6 +124,15 @@ function mergeState(parsed: Partial<LearnerState>): LearnerState {
   return {
     ...defaultState,
     ...parsed,
+    completedLessonIds: parsed.completedLessonIds ?? [],
+    completedActivityIds: parsed.completedActivityIds ?? [],
+    errorBank: (parsed.errorBank ?? defaultState.errorBank).map((record) => ({
+      ...record,
+      masteryScore: normalizeErrorMasteryScore(record.masteryScore)
+    })),
+    srsItems: parsed.srsItems ?? [],
+    speakingRecords: parsed.speakingRecords ?? [],
+    exerciseResults: parsed.exerciseResults ?? {},
     skillEstimates: { ...defaultState.skillEstimates, ...(parsed.skillEstimates ?? {}) },
     evidence: {
       ...defaultState.evidence,
@@ -135,16 +145,20 @@ function mergeState(parsed: Partial<LearnerState>): LearnerState {
   };
 }
 
+function parseState(raw: string): LearnerState {
+  return mergeState(JSON.parse(raw) as Partial<LearnerState>);
+}
+
 export function loadState(): LearnerState {
-  if (typeof window === "undefined") return defaultState;
+  if (typeof window === "undefined") return structuredClone(defaultState);
   try {
     const current = localStorage.getItem(STORAGE_KEY);
-    if (current) return mergeState(JSON.parse(current));
+    if (current) return parseState(current);
 
     for (const legacyKey of LEGACY_KEYS) {
       const legacy = localStorage.getItem(legacyKey);
       if (legacy) {
-        const migrated = mergeState(JSON.parse(legacy));
+        const migrated = parseState(legacy);
         localStorage.setItem(STORAGE_KEY, JSON.stringify(migrated));
         return migrated;
       }
@@ -155,9 +169,14 @@ export function loadState(): LearnerState {
   }
 }
 
-export function saveState(state: LearnerState): void {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+export function saveState(state: LearnerState): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export function resetState(): LearnerState {

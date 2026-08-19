@@ -54,13 +54,26 @@ export function dueItems(items: SRSItem[], now = new Date()): SRSItem[] {
     .sort((a, b) => new Date(a.dueAt).getTime() - new Date(b.dueAt).getTime());
 }
 
-export function createSrsItem(sourceId: string, prompt: string, answer: string): SRSItem {
+export function masteredSrsCount(items: SRSItem[]): number {
+  return new Set(
+    items
+      .filter((item) => item.repetitions >= 3 && item.confidence >= 0.8)
+      .map((item) => item.sourceId)
+  ).size;
+}
+
+export function createSrsItem(
+  sourceId: string,
+  prompt: string,
+  answer: string,
+  direction: SRSItem["direction"] = "thai-to-english"
+): SRSItem {
   return {
     id: `srs-${sourceId}-${Date.now()}`,
     sourceId,
     prompt,
     answer,
-    direction: "thai-to-english",
+    direction,
     dueAt: new Date().toISOString(),
     intervalDays: 0,
     ease: 2.3,
