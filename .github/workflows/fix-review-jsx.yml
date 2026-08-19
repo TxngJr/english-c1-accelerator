@@ -1,0 +1,32 @@
+name: Apply review JSX repair
+
+on:
+  push:
+    branches:
+      - chatgpt/production-hardening-core
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: ${{ !contains(github.event.head_commit.message, '[review-jsx-fixed]') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+      - run: python scripts/fix-review-jsx.py
+      - run: |
+          rm scripts/fix-review-jsx.py
+          rm .github/workflows/fix-review-jsx.yml
+      - name: Commit repair
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "fix(ui): repair SRS review JSX [review-jsx-fixed]"
+          git push origin HEAD:${{ github.ref_name }}
