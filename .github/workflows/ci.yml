@@ -19,14 +19,14 @@ concurrency:
 jobs:
   migrate:
     name: Apply one-shot immersion migration
-    if: ${{ github.ref == 'refs/heads/chatgpt/immersion-pronunciation' }}
+    if: ${{ github.ref == 'refs/heads/chatgpt/immersion-pronunciation' || github.head_ref == 'chatgpt/immersion-pronunciation' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Checkout branch
+      - name: Checkout source branch
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.ref_name }}
+          ref: ${{ github.head_ref || github.ref_name }}
           fetch-depth: 0
 
       - name: Apply exact source migration
@@ -40,13 +40,15 @@ jobs:
           git checkout origin/main -- .github/workflows/ci.yml
 
       - name: Commit migrated source
+        env:
+          BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
           git diff --cached --check
           git commit -m "feat(learning): activate immersion and pronunciation practice [immersion-pronunciation-applied]"
-          git push origin HEAD:${{ github.ref_name }}
+          git push origin HEAD:${BRANCH_NAME}
 
   verify:
     name: Verify production build
@@ -56,10 +58,10 @@ jobs:
     timeout-minutes: 15
 
     steps:
-      - name: Checkout latest branch state
+      - name: Checkout latest source branch
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.ref_name }}
+          ref: ${{ github.head_ref || github.ref_name }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
