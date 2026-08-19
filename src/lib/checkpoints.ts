@@ -1,6 +1,6 @@
-import type { CheckpointAttempt, LearnerState, Skill } from "./types.ts";
-import { levelIndex } from "./adaptive.ts";
+import type { CEFR, CheckpointAttempt, LearnerState, Skill } from "./types.ts";
 
+const LEVEL_ORDER: CEFR[] = ["A1", "A1+", "A2-", "A2", "A2+", "B1-", "B1", "B1+", "B2-", "B2", "B2+", "C1-", "C1"];
 const PROMOTED_SKILLS: Skill[] = [
   "speaking",
   "listening",
@@ -9,6 +9,10 @@ const PROMOTED_SKILLS: Skill[] = [
   "grammarProduction",
   "vocabulary"
 ];
+
+function levelIndex(level: CEFR): number {
+  return Math.max(0, LEVEL_ORDER.indexOf(level));
+}
 
 export function checkpointScoresAreValid(scores: CheckpointAttempt["scores"]): boolean {
   const values = Object.values(scores);
