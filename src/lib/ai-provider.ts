@@ -25,6 +25,12 @@ type ChatCompletionResponse = {
   }>;
 };
 
+type RankedModel = {
+  id: string;
+  haystack: string;
+  score: number;
+};
+
 let cachedModel: { baseUrl: string; model: string; expiresAt: number } | undefined;
 
 export function aiBaseUrl(raw = process.env.AI_BASE_URL): string {
@@ -56,27 +62,56 @@ function searchable(value: string): string {
     .trim();
 }
 
-export function chooseRecommendedKmitlModel(entries: ModelEntry[]): string | undefined {
-  const candidates = entries
-    .map((entry) => ({
-      id: typeof entry.id === "string" ? entry.id.trim() : "",
-      haystack: searchable(`${typeof entry.id === "string" ? entry.id : ""} ${typeof entry.name === "string" ? entry.name : ""}`)
-    }))
-    .filter((entry) => entry.id);
+function includesAll(haystack: string, tokens: string[]): boolean {
+  return tokens.every((token) => haystack.includes(token));
+}
 
-  const preferredTokenSets = [
-    ["deepseek", "v4", "flash"],
-    ["kimi", "k3"],
-    ["grok", "4", "6"]
+/**
+ * Rank only models that the authenticated KMITL /models endpoint actually returns.
+ * The order intentionally favors capability over price/speed because this project
+ * uses the gateway for high-value speaking feedback and conversation coaching.
+ * Unknown models are not guessed as "strongest"; set AI_CHAT_MODEL explicitly if
+ * KMITL later adds a model that should outrank this table.
+ */
+export function modelCapabilityScore(entry: ModelEntry): number {
+  const haystack = searchable(
+    `${typeof entry.id === "string" ? entry.id : ""} ${typeof entry.name === "string" ? entry.name : ""}`
+  );
+  if (!haystack) return 0;
+
+  const tiers: Array<{ tokens: string[]; score: number }> = [
+    { tokens: ["gpt", "5", "6", "sol"], score: 1600 },
+    { tokens: ["claude", "fable", "5"], score: 1550 },
+    { tokens: ["grok", "4", "6"], score: 1500 },
+    { tokens: ["kimi", "k3"], score: 1400 },
+    { tokens: ["deepseek", "v4", "pro"], score: 1300 },
+    { tokens: ["deepseek", "v4", "flash"], score: 1200 }
   ];
 
-  for (const tokens of preferredTokenSets) {
-    const match = candidates.find((entry) => tokens.every((token) => entry.haystack.includes(token)));
-    if (match) return match.id;
+  for (const tier of tiers) {
+    if (includesAll(haystack, tier.tokens)) return tier.score;
   }
-
-  return undefined;
+  return 0;
 }
+
+export function chooseStrongestKmitlModel(entries: ModelEntry[]): string | undefined {
+  const ranked: RankedModel[] = entries
+    .map((entry) => {
+      const id = typeof entry.id === "string" ? entry.id.trim() : "";
+      return {
+        id,
+        haystack: searchable(`${id} ${typeof entry.name === "string" ? entry.name : ""}`),
+        score: modelCapabilityScore(entry)
+      };
+    })
+    .filter((entry) => entry.id && entry.score > 0)
+    .sort((a, b) => b.score - a.score || a.id.localeCompare(b.id));
+
+  return ranked[0]?.id;
+}
+
+// Backward-compatible export for existing tests/imports.
+export const chooseRecommendedKmitlModel = chooseStrongestKmitlModel;
 
 export async function resolveChatModel(
   apiKey: string,
@@ -110,7 +145,7 @@ export async function resolveChatModel(
     return undefined;
   }
 
-  const selected = chooseRecommendedKmitlModel(Array.isArray(payload.data) ? payload.data : []);
+  const selected = chooseStrongestKmitlModel(Array.isArray(payload.data) ? payload.data : []);
   if (!selected) return undefined;
 
   const model = selected.startsWith(DEFAULT_AI_MODEL_PREFIX) ? selected : withModelPrefix(selected);
