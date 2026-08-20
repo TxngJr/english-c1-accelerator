@@ -4,19 +4,25 @@ export default function Home() {
   return (
     <>
       <LearningApp />
-      <a
-        href="/speaking-coach"
-        className="btn primary"
+      <div
         style={{
           position: "fixed",
           right: 18,
           bottom: 18,
           zIndex: 50,
-          boxShadow: "var(--shadow)"
+          display: "flex",
+          flexDirection: "column",
+          gap: 8,
+          alignItems: "flex-end"
         }}
       >
-        🎙 Speaking Coach
-      </a>
+        <a href="/conversation-coach" className="btn" style={{ boxShadow: "var(--shadow)" }}>
+          💬 Conversation Coach
+        </a>
+        <a href="/speaking-coach" className="btn primary" style={{ boxShadow: "var(--shadow)" }}>
+          🎙 Speaking Coach
+        </a>
+      </div>
     </>
   );
 }
