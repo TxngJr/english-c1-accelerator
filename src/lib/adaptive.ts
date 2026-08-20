@@ -1,7 +1,11 @@
 import { dailySkillBaseWeights, immersionMinimums, personalizedStages, type ProgramStageId } from "../content/personalized-program.ts";
 import type { CEFR, CheckpointAttempt, CheckpointLevel, LearnerState, Skill } from "./types";
 import { latestVerifiedCheckpoint } from "./checkpoints.ts";
-import { longestReadinessSpeakingSeconds } from "./speaking-evidence.ts";
+import {
+  longestReadinessSpeakingSeconds,
+  longestTranscribedReadinessSpeakingSeconds,
+  transcribedReadinessSpeakingCount
+} from "./speaking-evidence.ts";
 
 export const levelOrder: CEFR[] = ["A1", "A1+", "A2-", "A2", "A2+", "B1-", "B1", "B1+", "B2-", "B2", "B2+", "C1-", "C1"];
 
@@ -70,6 +74,20 @@ const speakingDurationFloor: Record<CheckpointLevel, number> = {
   C1: 360
 };
 
+const transcribedSampleFloor: Record<CheckpointLevel, number> = {
+  A2: 0,
+  B1: 1,
+  B2: 2,
+  C1: 4
+};
+
+const transcribedSampleMinimumSeconds: Record<CheckpointLevel, number> = {
+  A2: 45,
+  B1: 60,
+  B2: 120,
+  C1: 120
+};
+
 const cumulativeGuidedHourFloors: Record<CheckpointLevel, number> = {
   A2: 120,
   B1: 250,
@@ -131,6 +149,32 @@ export function readinessReport(state: LearnerState, level: CheckpointLevel): Re
     target: `≥ ${speakingDurationFloor[level]}s`,
     critical: true
   });
+
+  const requiredTranscribedSamples = transcribedSampleFloor[level];
+  if (requiredTranscribedSamples > 0) {
+    const minimumSeconds = transcribedSampleMinimumSeconds[level];
+    const transcribedSamples = transcribedReadinessSpeakingCount(state.speakingRecords, minimumSeconds);
+    criteria.push({
+      id: "transcribed-speaking-samples",
+      label: "Reviewed transcribed speaking samples",
+      passed: transcribedSamples >= requiredTranscribedSamples,
+      value: `${transcribedSamples} sample(s) ≥ ${minimumSeconds}s`,
+      target: `≥ ${requiredTranscribedSamples} reviewed sample(s) with audio + auditable transcript`,
+      critical: level === "B2" || level === "C1"
+    });
+  }
+
+  if (level === "C1") {
+    const longestTranscribed = longestTranscribedReadinessSpeakingSeconds(state.speakingRecords);
+    criteria.push({
+      id: "c1-long-transcribed-speaking",
+      label: "Long C1 speaking sample with reviewed transcript",
+      passed: longestTranscribed >= 360,
+      value: `${longestTranscribed}s`,
+      target: "≥ 360s audio + reviewed transcript",
+      critical: true
+    });
+  }
 
   const guidedHours = state.evidence.structuredMinutes / 60;
   criteria.push({
