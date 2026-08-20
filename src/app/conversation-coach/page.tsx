@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { ConversationCoach } from "@/components/conversation-coach";
 
 export default function ConversationCoachPage() {
@@ -9,9 +10,9 @@ export default function ConversationCoachPage() {
           <div><strong>Conversation Coach</strong><span>unprepared speaking pressure</span></div>
         </div>
         <nav className="nav">
-          <a className="nav-button active" href="/conversation-coach"><span className="nav-icon">◉</span>Conversation</a>
-          <a className="nav-button" href="/speaking-coach"><span className="nav-icon">🎙</span>Speaking Coach</a>
-          <a className="nav-button" href="/"><span className="nav-icon">←</span>Course</a>
+          <Link className="nav-button active" href="/conversation-coach"><span className="nav-icon">◉</span>Conversation</Link>
+          <Link className="nav-button" href="/speaking-coach"><span className="nav-icon">🎙</span>Speaking Coach</Link>
+          <Link className="nav-button" href="/"><span className="nav-icon">←</span>Course</Link>
         </nav>
         <div className="sidebar-footer">
           <div className="tiny">C1 interaction training</div>
