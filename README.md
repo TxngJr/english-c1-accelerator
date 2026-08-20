@@ -30,7 +30,7 @@ The system intentionally does not allocate equal time to every skill.
 - Grammar production is weighted above recognition to convert passive knowledge into usable language.
 - Recurring Error Bank patterns raise future production/remediation priority.
 - Programming, AI, software architecture, university, projects, gaming, travel and professional communication recur as motivating contexts while broad general English remains mandatory.
-- Thai support now follows a CEFR-aware immersion policy: visible early, available on demand during transition, and English-first at higher levels.
+- Thai support follows a CEFR-aware immersion policy: visible early, available on demand during transition, and English-first at higher levels.
 
 See `src/content/personalized-program.ts`, `src/lib/immersion.ts` and `docs/PERSONALIZED_C1_EXECUTION.md`.
 
@@ -84,6 +84,7 @@ Important integrity rules include:
 - Full progress backup/import including speaking audio
 - Storage-health warning when local persistence fails
 - Route/root error recovery boundaries
+- Chromium Playwright critical-flow E2E coverage in CI
 
 ## C1 exit integrity
 
@@ -118,11 +119,13 @@ npm run validate:content
 npm run typecheck
 npm run lint
 npm run build
+npx playwright install --with-deps chromium
+npm run test:e2e -- --reporter=line
 ```
 
-GitHub Actions also runs a production dependency audit before the test/build gate. Pull requests should not be merged while this verification is failing.
+GitHub Actions also runs `npm audit --omit=dev --audit-level=high` before the test/build/browser gate. A release is not green unless the critical browser E2E suite passes; pull requests should not be merged while any required verification step is failing.
 
-The repository has now been validated in a real GitHub Actions environment with dependency installation, domain tests, curriculum validation, TypeScript checking, ESLint and an actual Next.js production build. See `docs/BUILD_STATUS.md` and `.github/workflows/ci.yml` for the current gate.
+The repository has been validated in a real GitHub Actions environment with dependency installation, domain tests, curriculum validation, TypeScript checking, ESLint and an actual Next.js production build. Browser verification is a separate required gate; see `docs/BUILD_STATUS.md` for the latest result instead of inferring release status from a successful build alone.
 
 ## Data safety
 
@@ -132,11 +135,11 @@ Export a backup before changing browsers/devices, clearing site data or resettin
 
 ## Production-readiness status
 
-The project is materially hardened compared with the original V1, but it is **not yet declared fully production-complete**. Remaining work is tracked in `docs/PRODUCTION_READINESS.md` and currently includes browser-level E2E coverage, further component/module decomposition, richer lower-level integrated assessment material and broader real multi-speaker/accent listening assets beyond browser TTS fallback.
+The project is materially hardened compared with the original V1, but it is **not yet declared fully production-complete**. Remaining work is tracked in `docs/PRODUCTION_READINESS.md` and currently includes expanding browser coverage beyond the existing critical-flow suite, further component/module decomposition, richer lower-level integrated assessment material, broader real multi-speaker/accent listening assets beyond browser TTS fallback, cross-browser media/storage verification, deployment-specific CSP and repository rules that require the complete CI gate before merge.
 
 ## Important interpretation
 
-This project is designed to provide a serious pathway toward C1; it cannot guarantee C1 from passive completion. The learner must actually perform the speaking, listening, reading, writing, review and real-world tasks. The application is deliberately designed to avoid declaring C1 merely because lessons were completed.
+This project is designed to provide a serious pathway toward C1; it cannot guarantee C1 from passive completion. The learner must actually perform the speaking, listening, reading, writing, review, immersion and real-world tasks. The application is deliberately designed to avoid declaring C1 merely because lessons were completed.
 
 See also:
 
