@@ -7,6 +7,7 @@ export default function Home() {
     <>
       <LearningApp />
       <div
+        className="practice-shortcuts"
         style={{
           position: "fixed",
           right: 18,
