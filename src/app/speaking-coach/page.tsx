@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AIProviderStatus } from "@/components/ai-provider-status";
 import { SpeakingCoach } from "@/components/speaking-coach";
 
 export default function SpeakingCoachPage() {
@@ -14,6 +15,7 @@ export default function SpeakingCoachPage() {
           <Link className="nav-button" href="/conversation-coach"><span className="nav-icon">💬</span>Conversation</Link>
           <Link className="nav-button" href="/"><span className="nav-icon">←</span>Course</Link>
         </nav>
+        <AIProviderStatus />
         <div className="sidebar-footer">
           <div className="tiny">Evidence rule</div>
           <div style={{ fontWeight: 800, margin: "4px 0" }}>Audio + reviewed transcript</div>
