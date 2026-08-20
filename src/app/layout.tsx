@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import "./ai-tutor-responsive.css";
 
 export const metadata: Metadata = {
   title: "English C1 Accelerator",
