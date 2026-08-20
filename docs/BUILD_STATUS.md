@@ -38,12 +38,13 @@ GitHub Actions executes from a clean checkout on Node 22 and requires all of the
 5. `npm run typecheck`
 6. `npm run lint`
 7. `npm run build`
+8. `npm run test:e2e -- --reporter=line` after installing Chromium
 
-The workflow uses read-only repository contents permission and pins third-party GitHub Actions by immutable commit SHA.
+A release is not green unless the browser E2E step passes as well as the domain/build checks. The workflow uses read-only repository contents permission and pins third-party GitHub Actions by immutable commit SHA.
 
-## Latest verified result
+## Latest verified main-line result
 
-Latest PR verification in GitHub Actions:
+The latest merged browser-E2E change was **not fully green** in GitHub Actions. The clean-run result was:
 
 - dependency install: **passing**
 - production dependency audit: **0 vulnerabilities reported**
@@ -65,6 +66,9 @@ Latest PR verification in GitHub Actions:
 - TypeScript typecheck: **passing**
 - ESLint / Next.js rules: **passing**
 - Next.js production build: **passing**
+- Chromium Playwright E2E: **1/8 passing, 7/8 failing** because the tests requested exact labels such as `Vocabulary` while the rendered accessible button names include decorative icon text such as `Aa Vocabulary`
+
+The selector mismatch is a test-harness defect rather than evidence of an application crash: the captured browser page rendered the learning UI and navigation normally. A fix is staged on `chatgpt/production-readiness-audit`; do not describe the branch as verified until its complete CI gate is confirmed green.
 
 ## Runtime requirements
 
@@ -77,12 +81,12 @@ Latest PR verification in GitHub Actions:
 
 A green build does not mean all public-production quality work is finished. The important remaining gaps are tracked in `docs/PRODUCTION_READINESS.md`, especially:
 
-- browser/component E2E coverage of critical workflows
+- expansion of browser E2E coverage beyond the current critical-flow suite
 - cross-browser media/storage verification
 - decomposition of the large client learning component
 - fuller integrated A2/B1/B2 assessment packs
 - broader real multi-speaker/accent advanced listening assets beyond browser TTS fallback
 - deployment-specific CSP after final external origins are known
-- repository branch protection/ruleset requiring CI before merge
+- repository branch protection/ruleset requiring the complete CI check before merge
 
-Until those are resolved, describe the application as **production-hardened and build-verified**, not fully production-complete.
+Until those are resolved, describe the application as **production-hardened**, not fully production-complete. A passing domain/build gate must never be reported as a passing release gate when browser E2E is red.
