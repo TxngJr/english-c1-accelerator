@@ -170,6 +170,30 @@ export type SRSItem = {
   averageResponseMs?: number;
 };
 
+export type SpeakingMetrics = {
+  wordCount: number;
+  wordsPerMinute: number;
+  uniqueWordRatio: number;
+  fillerCount: number;
+  fillerRatePer100Words: number;
+  discourseMarkerCount: number;
+  selfRepairCount: number;
+  repeatedWordCount: number;
+  averageSentenceWords: number;
+};
+
+export type SpeakingAIFeedback = {
+  overall: string;
+  estimatedCeiling?: string;
+  grammar: string[];
+  vocabulary: string[];
+  coherence: string[];
+  fluency: string[];
+  corrections: { original: string; improved: string; reason: string }[];
+  nextDrill: string;
+  limitation: string;
+};
+
 export type SpeakingRecord = {
   id: string;
   lessonId: string;
@@ -178,13 +202,17 @@ export type SpeakingRecord = {
   createdAt: string;
   selfRating: number;
   notes?: string;
+  transcript?: string;
+  transcriptSource?: "browser" | "openai" | "manual" | "edited";
+  transcriptVerified?: boolean;
+  speakingMetrics?: SpeakingMetrics;
+  aiFeedback?: SpeakingAIFeedback;
 };
 
 export type SkillEstimate = {
   level: CEFR;
   progress: number;
 };
-
 
 export type StudyEvidence = {
   structuredMinutes: number;
