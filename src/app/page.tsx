@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { LearningApp } from "@/components/learning-app";
 
 export default function Home() {
@@ -16,12 +17,12 @@ export default function Home() {
           alignItems: "flex-end"
         }}
       >
-        <a href="/conversation-coach" className="btn" style={{ boxShadow: "var(--shadow)" }}>
+        <Link href="/conversation-coach" className="btn" style={{ boxShadow: "var(--shadow)" }}>
           💬 Conversation Coach
-        </a>
-        <a href="/speaking-coach" className="btn primary" style={{ boxShadow: "var(--shadow)" }}>
+        </Link>
+        <Link href="/speaking-coach" className="btn primary" style={{ boxShadow: "var(--shadow)" }}>
           🎙 Speaking Coach
-        </a>
+        </Link>
       </div>
     </>
   );
