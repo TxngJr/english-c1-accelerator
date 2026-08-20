@@ -6,10 +6,10 @@ import type { Lesson } from "../../../lib/types.ts";
 
 export const runtime = "nodejs";
 
-const MAX_HISTORY_ITEMS = 12;
-const MAX_HISTORY_CHARS = 18_000;
-const MAX_MESSAGE_CHARS = 5_000;
-const MAX_LESSON_DIGEST_CHARS = 6_000;
+const MAX_HISTORY_ITEMS = 8;
+const MAX_HISTORY_CHARS = 10_000;
+const MAX_MESSAGE_CHARS = 4_000;
+const MAX_LESSON_DIGEST_CHARS = 4_500;
 const allowedModes = new Set<LessonTutorMode>(["integrated", "speaking", "listening", "reading", "writing", "grammar"]);
 const integratedCycle: LessonTutorAction[] = ["listen", "speak", "read", "write"];
 
@@ -23,7 +23,7 @@ function cleanHistory(value: unknown): HistoryItem[] {
     if (!item || typeof item !== "object") continue;
     const record = item as Record<string, unknown>;
     const role = record.role === "assistant" ? "assistant" : record.role === "user" ? "user" : undefined;
-    const content = typeof record.content === "string" ? record.content.trim().slice(0, 3500) : "";
+    const content = typeof record.content === "string" ? record.content.trim().slice(0, 2800) : "";
     if (!role || !content) continue;
     if (chars + content.length > MAX_HISTORY_CHARS) break;
     chars += content.length;
@@ -50,37 +50,53 @@ function compactText(value: string, limit: number): string {
 }
 
 function lessonDigest(lesson: Lesson, mode: LessonTutorMode): string {
-  const vocabulary = lesson.vocabulary.slice(0, 14).map((item) => {
+  const vocabulary = lesson.vocabulary.slice(0, 12).map((item) => {
     const chunks = item.collocations?.slice(0, 3).join(", ");
-    return `${item.wordOrChunk}: ${compactText(item.definitionEnglish, 120)}${chunks ? ` | chunks: ${chunks}` : ""}`;
+    return `${item.wordOrChunk}: ${compactText(item.definitionEnglish, 100)}${chunks ? ` | chunks: ${chunks}` : ""}`;
   });
-
   const grammar = lesson.grammar.slice(0, 4).map((activity) => {
     const examples = activity.examples?.slice(0, 3).join(" / ") ?? "";
     return `${activity.title}${examples ? ` | examples: ${examples}` : ""}`;
   });
-
-  const speaking = lesson.speaking.slice(0, 5).map((exercise) => compactText(exercise.prompt, 240));
-  const writing = (lesson.writing ?? []).slice(0, 4).map((exercise) => compactText(exercise.prompt, 260));
+  const speaking = lesson.speaking.slice(0, 5).map((exercise) => compactText(exercise.prompt, 220));
+  const writing = (lesson.writing ?? []).slice(0, 4).map((exercise) => compactText(exercise.prompt, 240));
   const listening = lesson.listening.slice(0, 2).map((block) =>
-    `${block.title} | first-listen question: ${compactText(block.firstListenQuestion, 220)} | script: ${compactText(block.script, mode === "listening" ? 1600 : 700)}`
+    `${block.title} | first-listen question: ${compactText(block.firstListenQuestion, 180)} | script: ${compactText(block.script, mode === "listening" ? 1500 : 600)}`
   );
   const reading = (lesson.reading ?? []).slice(0, 2).map((block) =>
-    `${block.title} | text: ${compactText(block.text, mode === "reading" ? 1900 : 800)}`
+    `${block.title} | text: ${compactText(block.text, mode === "reading" ? 1800 : 700)}`
   );
 
-  const sections = [
-    `Vocabulary/chunks:\n${vocabulary.join("\n") || "none"}`,
-    `Grammar focus:\n${grammar.join("\n") || "none"}`,
-    `Speaking prompts:\n${speaking.join("\n") || "none"}`,
-    `Writing prompts:\n${writing.join("\n") || "none"}`
-  ];
+  const vocabSection = `Vocabulary/chunks:\n${vocabulary.join("\n") || "none"}`;
+  const grammarSection = `Grammar focus:\n${grammar.join("\n") || "none"}`;
+  const speakingSection = `Speaking prompts:\n${speaking.join("\n") || "none"}`;
+  const writingSection = `Writing prompts:\n${writing.join("\n") || "none"}`;
+  const listeningSection = `Listening material:\n${listening.join("\n") || "none"}`;
+  const readingSection = `Reading material:\n${reading.join("\n") || "none"}`;
+  const missionSection = lesson.realWorldMission ? `Real-world mission:\n${compactText(lesson.realWorldMission, 400)}` : "";
 
-  if (mode === "listening" || mode === "integrated") sections.push(`Listening material:\n${listening.join("\n") || "none"}`);
-  if (mode === "reading" || mode === "integrated") sections.push(`Reading material:\n${reading.join("\n") || "none"}`);
-  if (lesson.realWorldMission) sections.push(`Real-world mission:\n${compactText(lesson.realWorldMission, 500)}`);
+  let sections: string[];
+  switch (mode) {
+    case "speaking":
+      sections = [vocabSection, grammarSection, speakingSection, missionSection];
+      break;
+    case "listening":
+      sections = [vocabSection, listeningSection];
+      break;
+    case "reading":
+      sections = [vocabSection, readingSection];
+      break;
+    case "writing":
+      sections = [vocabSection, grammarSection, writingSection];
+      break;
+    case "grammar":
+      sections = [vocabSection, grammarSection];
+      break;
+    default:
+      sections = [vocabSection, grammarSection, speakingSection, writingSection, listeningSection, readingSection, missionSection];
+  }
 
-  return sections.join("\n\n").slice(0, MAX_LESSON_DIGEST_CHARS);
+  return sections.filter(Boolean).join("\n\n").slice(0, MAX_LESSON_DIGEST_CHARS);
 }
 
 export async function POST(request: Request) {
@@ -108,7 +124,7 @@ export async function POST(request: Request) {
   const learnerMessage = typeof input.message === "string" ? input.message.trim().slice(0, MAX_MESSAGE_CHARS) : "";
   const history = cleanHistory(input.history);
   const weakSkills = cleanStrings(input.weakSkills, 5, 120);
-  const recurringErrors = cleanStrings(input.recurringErrors, 8, 240);
+  const recurringErrors = cleanStrings(input.recurringErrors, 8, 220);
   const completedLearnerTurns = history.filter((item) => item.role === "user").length + (learnerMessage ? 1 : 0);
   const requiredIntegratedAction = integratedCycle[completedLearnerTurns % integratedCycle.length];
   const material = lessonDigest(lesson, mode);
@@ -172,7 +188,7 @@ focus: ${lesson.focus}
 objectives: ${lesson.objectives.join(" | ") || "not supplied"}
 priority skill: ${lesson.prioritySkill}
 
-CANONICAL LESSON MATERIAL
+CANONICAL LESSON MATERIAL FOR THIS MODE
 <lesson_material>
 ${material}
 </lesson_material>
