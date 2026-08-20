@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { saveRecordingBlob } from "@/lib/audio-store";
 import { conversationTopics, localFollowUp, minimumConversationTurns, type ConversationChallengeType } from "@/lib/conversation-coach";
@@ -365,8 +366,8 @@ export function ConversationCoach() {
         </div>
         <div className="top-actions">
           <span className={`pill ${turns >= targetTurns ? "success" : ""}`}>{turns}/{targetTurns} target turns</span>
-          <a className="btn" href="/speaking-coach">Speaking Coach</a>
-          <a className="btn" href="/">Course</a>
+          <Link className="btn" href="/speaking-coach">Speaking Coach</Link>
+          <Link className="btn" href="/">Course</Link>
         </div>
       </div>
 
