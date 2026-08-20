@@ -96,7 +96,7 @@ export function ConversationCoach() {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const recordingRef = useRef(false);
   const transcriptRef = useRef("");
-  const audioUrlRef = useRef<string>();
+  const audioUrlRef = useRef<string | undefined>(undefined);
 
   const currentQuestion = [...messages].reverse().find((message) => message.role === "partner")?.text ?? topic.openingQuestion;
   const metrics = useMemo(() => analyzeSpeakingTranscript(transcript, seconds || 1), [transcript, seconds]);
