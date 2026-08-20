@@ -27,6 +27,7 @@ A passing production build is not sufficient if the browser E2E suite is red. Gi
 - Advanced B2/C1 speaking readiness cannot be satisfied by recording duration alone; reviewed transcript evidence is required.
 - C1 requires multiple reviewed transcribed speaking samples and at least one six-minute audio+transcript sample.
 - Speech-to-text metrics never become a pronunciation score or an automatic CEFR certificate.
+- Conversation Coach turns remain training evidence; AI/local follow-ups never substitute for independent C1 validation.
 - Error Bank mastery uses one 0–100 scale across defaults, new records, migrations, remediation and readiness checks.
 - Self-scored checkpoint rubrics are practice evidence and never directly promote CEFR skill estimates.
 - Verified checkpoint promotion requires an identified qualified human evaluator.
@@ -48,6 +49,14 @@ Three transcription paths exist:
 The application computes transcript-based coaching signals such as speaking rate, fillers, repetitions, discourse markers, self-repairs and lexical-variety evidence. These are diagnostic signals only. They do not directly promote CEFR skill estimates.
 
 Optional AI feedback is constrained to transcript-language evidence such as grammar, collocation, vocabulary precision, organization and reformulation. It must not claim to score pronunciation, accent, stress, rhythm, intonation or microphone intelligibility from text.
+
+## Conversation Coach integrity
+
+The dedicated `/conversation-coach` workflow adds interaction pressure that a prepared monologue cannot provide. A2/B1/B2/C1 sessions progressively introduce clarification, examples/reasons, counterarguments, changed hypotheticals, qualification, reformulation and synthesis.
+
+Each learner turn is recorded and requires the same reviewed-transcript rule before it is persisted as speaking evidence. When optional AI is configured, the follow-up is grounded in the learner's actual transcript. If the service is unavailable, a deterministic local challenge engine keeps the practice loop usable without a paid API.
+
+Conversation Coach is still practice rather than certification. It cannot reproduce every property of real human interaction, such as overlapping speech, emotion, social relationship, unfamiliar accents, interruption timing or the accountability of an independent assessor. Those limitations are intentionally kept outside automatic CEFR promotion.
 
 If paid cloud routes are enabled for an untrusted/public deployment, authentication and rate limiting are required before treating those routes as production-safe. The local personal-learning configuration remains usable without a paid API.
 
@@ -79,9 +88,9 @@ Security headers are regression-tested. This baseline does not replace a deploym
 
 ## Browser verification status
 
-A Chromium Playwright critical-flow suite now covers initial rendering/security headers, the Speaking Coach entry surface, persistent SRS add-to-review state, course prerequisite locks, transcript gating, incorrect SRS grading restrictions, self-scored checkpoint non-promotion, invalid backup recovery and mobile navigation.
+A Chromium Playwright critical-flow suite now covers initial rendering/security headers, the Speech-to-Text Speaking Coach entry surface, the Conversation Coach entry surface, persistent SRS add-to-review state, course prerequisite locks, transcript gating, incorrect SRS grading restrictions, self-scored checkpoint non-promotion, invalid backup recovery and mobile navigation.
 
-The latest merged run on `main` before this audit was not fully green: 1/8 browser tests passed and 7/8 failed because the test selectors expected labels such as `Vocabulary` while the accessible button name included decorative icon text such as `Aa Vocabulary`. This was a test-harness selector defect, not evidence that the page failed to render. The selector correction and the new Speaking Coach coverage are staged on `chatgpt/production-readiness-audit`; the branch must not be described as release-verified until its complete CI gate is confirmed green.
+The latest merged run on `main` before this audit was not fully green: 1/8 browser tests passed and 7/8 failed because the test selectors expected labels such as `Vocabulary` while the accessible button name included decorative icon text such as `Aa Vocabulary`. This was a test-harness selector defect, not evidence that the page failed to render. The selector correction and new speaking/conversation browser coverage are staged on `chatgpt/production-readiness-audit`; the branch must not be described as release-verified until its complete CI gate is confirmed green.
 
 ## Remaining hardening tracks
 
@@ -91,7 +100,7 @@ The following work still matters before declaring a broad public production rele
 - feature-module refactor of the current large client component to reduce blast radius and client bundle coupling
 - richer integrated A2/B1/B2 assessment packs backed by actual in-app task evidence rather than primarily rubric metadata
 - broader advanced listening audio with multiple real speakers/accents; browser TTS should remain a fallback, not the only advanced input source
-- real interactive speaking pressure through a teacher/conversation partner or a carefully bounded realtime conversation adapter; monologue transcription alone is insufficient for C1 interaction
+- regular real-human interaction with teachers, peers, colleagues or language partners; the Conversation Coach is strong practice but not a substitute for all real social timing/accent/interruptions
 - deployment-specific Content Security Policy after final media/API origins are known
 - authentication/rate limiting before optional paid AI routes are exposed to untrusted public users
 - branch protection / ruleset requiring the complete CI check before merge (repository administration setting)
