@@ -6,6 +6,7 @@ export const STORAGE_KEY = "english-c1-accelerator:v3-production";
 const LEGACY_KEYS = ["english-c1-accelerator:v2-personalized", "english-c1-accelerator:v1"];
 const CEFR_LEVELS: CEFR[] = ["A1", "A1+", "A2-", "A2", "A2+", "B1-", "B1", "B1+", "B2-", "B2", "B2+", "C1-", "C1"];
 const SKILLS: Skill[] = ["speaking", "listening", "reading", "writing", "grammarProduction", "grammarRecognition", "vocabulary", "pronunciation"];
+const TRANSCRIPT_SOURCES = ["browser", "openai", "manual", "edited"] as const;
 
 export const defaultState: LearnerState = {
   completedLessonIds: [],
@@ -139,12 +140,54 @@ function assertFiniteNumber(value: unknown, field: string, minimum = 0): asserts
   }
 }
 
+function validateSpeakingRecords(value: unknown): void {
+  assertArray(value, "speakingRecords");
+  value.forEach((item, index) => {
+    if (!isRecord(item)) throw new Error(`speakingRecords.${index} must be an object.`);
+    for (const field of ["id", "lessonId", "prompt", "createdAt"] as const) {
+      if (typeof item[field] !== "string" || !String(item[field]).trim()) {
+        throw new Error(`speakingRecords.${index}.${field} must be a non-empty string.`);
+      }
+    }
+    assertFiniteNumber(item.durationSeconds, `speakingRecords.${index}.durationSeconds`);
+    assertFiniteNumber(item.selfRating, `speakingRecords.${index}.selfRating`);
+    if ((item.selfRating as number) > 5) throw new Error(`speakingRecords.${index}.selfRating must be <= 5.`);
+
+    if (item.notes !== undefined && typeof item.notes !== "string") {
+      throw new Error(`speakingRecords.${index}.notes must be a string.`);
+    }
+    if (item.transcript !== undefined) {
+      if (typeof item.transcript !== "string") throw new Error(`speakingRecords.${index}.transcript must be a string.`);
+      if (item.transcript.length > 50_000) throw new Error(`speakingRecords.${index}.transcript is too large.`);
+    }
+    if (item.transcriptSource !== undefined && !TRANSCRIPT_SOURCES.includes(item.transcriptSource as (typeof TRANSCRIPT_SOURCES)[number])) {
+      throw new Error(`speakingRecords.${index}.transcriptSource is invalid.`);
+    }
+    if (item.transcriptVerified !== undefined && typeof item.transcriptVerified !== "boolean") {
+      throw new Error(`speakingRecords.${index}.transcriptVerified must be boolean.`);
+    }
+    if (item.speakingMetrics !== undefined) {
+      if (!isRecord(item.speakingMetrics)) throw new Error(`speakingRecords.${index}.speakingMetrics must be an object.`);
+      for (const metric of ["wordCount", "wordsPerMinute", "uniqueWordRatio", "fillerCount", "fillerRatePer100Words", "discourseMarkerCount", "selfRepairCount", "repeatedWordCount", "averageSentenceWords"] as const) {
+        assertFiniteNumber(item.speakingMetrics[metric], `speakingRecords.${index}.speakingMetrics.${metric}`);
+      }
+      if ((item.speakingMetrics.uniqueWordRatio as number) > 1) {
+        throw new Error(`speakingRecords.${index}.speakingMetrics.uniqueWordRatio must be <= 1.`);
+      }
+    }
+    if (item.aiFeedback !== undefined && !isRecord(item.aiFeedback)) {
+      throw new Error(`speakingRecords.${index}.aiFeedback must be an object.`);
+    }
+  });
+}
+
 function validateStateShape(input: unknown): Partial<LearnerState> {
   if (!isRecord(input)) throw new Error("Learner state must be an object.");
 
-  for (const field of ["completedLessonIds", "completedActivityIds", "errorBank", "srsItems", "speakingRecords", "checkpointAttempts"] as const) {
+  for (const field of ["completedLessonIds", "completedActivityIds", "errorBank", "srsItems", "checkpointAttempts"] as const) {
     if (input[field] !== undefined) assertArray(input[field], field);
   }
+  if (input.speakingRecords !== undefined) validateSpeakingRecords(input.speakingRecords);
 
   if (input.currentLessonId !== undefined && typeof input.currentLessonId !== "string") {
     throw new Error("currentLessonId must be a string.");

@@ -2,8 +2,13 @@ import { expect, test } from "@playwright/test";
 import { defaultState, STORAGE_KEY } from "../src/lib/storage.ts";
 import type { LearnerState, Skill } from "../src/lib/types.ts";
 
+function escapeRegex(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 async function openTab(page: import("@playwright/test").Page, name: string) {
-  await page.getByRole("button", { name, exact: true }).click();
+  const desktopNav = page.locator(".sidebar .nav");
+  await desktopNav.getByRole("button", { name: new RegExp(`${escapeRegex(name)}$`) }).click();
 }
 
 async function seedState(page: import("@playwright/test").Page, state: LearnerState) {
@@ -26,6 +31,26 @@ test("renders the app and serves the hardened security headers", async ({ page, 
 
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "Today", exact: true })).toBeVisible();
+});
+
+test("speaking coach loads with transcript evidence controls", async ({ page }) => {
+  await page.goto("/speaking-coach");
+  await expect(page.getByRole("heading", { name: "Speaking Coach", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "A2", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "B1", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "B2", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "C1", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "High-accuracy Cloud STT", exact: true })).toBeDisabled();
+  await expect(page.getByText(/I reviewed this transcript/)).toBeVisible();
+});
+
+test("conversation coach loads with unexpected-follow-up practice controls", async ({ page }) => {
+  await page.goto("/conversation-coach");
+  await expect(page.getByRole("heading", { name: "Conversation Coach", exact: true })).toBeVisible();
+  await expect(page.getByText(/Current question/)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Hear question", exact: false })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Start answer", exact: false })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Submit turn/ })).toBeDisabled();
 });
 
 test("Add to review is React-state driven and survives reload", async ({ page }) => {
@@ -138,6 +163,6 @@ test("mobile navigation exposes all learning sections", async ({ page }) => {
   const mobileNav = page.locator(".mobile-nav");
   await expect(mobileNav).toBeVisible();
   await expect(mobileNav.locator("button.nav-button")).toHaveCount(13);
-  await mobileNav.getByRole("button", { name: "Settings", exact: true }).click();
+  await mobileNav.getByRole("button", { name: /Settings$/ }).click();
   await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible();
 });

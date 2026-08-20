@@ -30,7 +30,7 @@ The system intentionally does not allocate equal time to every skill.
 - Grammar production is weighted above recognition to convert passive knowledge into usable language.
 - Recurring Error Bank patterns raise future production/remediation priority.
 - Programming, AI, software architecture, university, projects, gaming, travel and professional communication recur as motivating contexts while broad general English remains mandatory.
-- Thai support now follows a CEFR-aware immersion policy: visible early, available on demand during transition, and English-first at higher levels.
+- Thai support follows a CEFR-aware immersion policy: visible early, available on demand during transition, and English-first at higher levels.
 
 See `src/content/personalized-program.ts`, `src/lib/immersion.ts` and `docs/PERSONALIZED_C1_EXECUTION.md`.
 
@@ -43,6 +43,7 @@ The app tracks separately:
 - CEFR estimates by skill
 - structured workload evidence
 - unscripted speaking recordings
+- reviewed speaking transcripts and transcript metrics
 - normal-speed listening exposure
 - recurring production errors
 - SRS retention/review history
@@ -56,50 +57,100 @@ Important integrity rules include:
 - A lesson with listening material cannot complete until each required listening block has actually finished at an eligible speed.
 - Speaking evidence is credited only after the audio blob is successfully persisted.
 - Pronunciation and baseline-retake recordings do not inflate unscripted-fluency duration gates.
+- B2/C1 readiness requires reviewed audio+transcript speaking samples; long audio alone is not enough.
+- C1 requires at least one reviewed transcribed speaking sample of 360 seconds or longer.
 - Error Bank mastery uses one 0–100 scale with migration for older state formats.
 - Self-scored checkpoint rubrics are practice evidence only and never promote CEFR estimates.
 - Verified CEFR promotion requires a passing checkpoint attributed to an identified qualified human evaluator.
 
+## Speaking Coach / Speech-to-Text
+
+Open `/speaking-coach` or use the floating **Speaking Coach** button from the main course.
+
+The coach implements a repeatable production loop:
+
+1. speak from keywords, not a full script
+2. record the real attempt
+3. transcribe with browser STT, optional KMITL cloud STT, or manual fallback
+4. correct only obvious STT mistakes
+5. explicitly confirm the transcript was reviewed
+6. inspect speaking-rate, fillers, repetition, discourse markers, self-repairs and lexical-variety evidence
+7. optionally request KMITL-backed AI feedback for grammar, collocation, vocabulary precision and coherence
+8. save the audio + reviewed transcript
+9. repeat the same prompt and improve one or two bottlenecks
+
+Speech-to-text is deliberately **not** used as a pronunciation score. Transcript analysis cannot reliably certify accent, stress, rhythm, intonation or audio intelligibility. Final C1 still requires broader evidence and independent assessment.
+
+## KMITL AI provider
+
+The optional AI features use the KMITL OpenAI-compatible gateway instead of calling OpenAI directly:
+
+```env
+AI_API_KEY=your-real-kmitl-token
+AI_BASE_URL=https://api.ai.kmitl.ac.th/v1
+AI_MODEL_PREFIX=openrouter/
+AI_CHAT_MODEL=
+```
+
+Keep `AI_CHAT_MODEL` blank for the normal configuration. The server calls the authenticated `GET /models` endpoint and selects the strongest recognized model that the token actually exposes. It does not assume availability from a public model catalog.
+
+For the teacher-recommended set, the capability preference is:
+
+1. Grok 4.6
+2. Kimi K3
+3. DeepSeek V4 Pro, when available
+4. DeepSeek V4 Flash
+
+The selector also recognizes stronger frontier families if KMITL exposes them. Set `AI_CHAT_MODEL` only when intentionally overriding automatic selection. The safe endpoint `GET /api/ai-provider/status` reports the chosen model without returning the API key.
+
+Speaking feedback and Conversation Coach use the OpenAI-compatible:
+
+```text
+POST /chat/completions
+```
+
+Purpose-specific overrides are available through `AI_FEEDBACK_MODEL` and `AI_CONVERSATION_MODEL`.
+
+### Cloud STT
+
+Cloud STT is optional because an OpenAI-compatible chat gateway does not necessarily expose `/audio/transcriptions`.
+
+Configure `AI_TRANSCRIPTION_MODEL` only when KMITL provides a compatible transcription model. If the endpoint/model is unavailable, Browser Speech Recognition and manual transcript correction continue to work and the application does **not** fall back to OpenAI directly.
+
+See `docs/KMITL_AI_PROVIDER.md` for the full setup guide.
+
 ## Core systems
 
-- Responsive 13-section learning interface
+- responsive learning interface
 - 224-day lesson engine
-- Speaking ladder from short chunks to extended C1 discussion
-- Browser microphone recording with IndexedDB persistence
-- Speaking history with replayable stored evidence
-- Pronunciation listen → imitate → record → replay practice
-- Long-form original listening scripts with chunked browser Speech Synthesis fallback and speed control
-- Transcript gating after first full listen
-- Longer B2/C1 reading and listening progression
-- Full C1 Exit Pack A: 3 long listening tasks, 2 demanding 1,200+ word readings, 4 speaking tasks and 3 writing/synthesis tasks
-- Production-first vocabulary/chunk work
-- SRS with typed retrieval, response-time evidence and multiple recall directions
-- Derived retained-item mastery instead of farmable mastery points
-- Personal Error Bank and targeted remediation
-- Adaptive daily time prescription
-- CEFR readiness reports with blockers
-- Verified checkpoint state transitions
-- Real-world missions that require explicit evidence
-- Local-first progress persistence with migration
-- Full progress backup/import including speaking audio
-- Storage-health warning when local persistence fails
-- Route/root error recovery boundaries
-
-## C1 exit integrity
-
-The final C1 rubric remains locked until the C1 Exit Pack has sufficient evidence, including all required tasks, all long listenings completed at normal speed, substantial recordings for every speaking task and at least one final speaking recording of 360 seconds.
-
-Even after those requirements are met, self-rating does not unlock C1. Final readiness still requires the broader skill/evidence profile and an independently verified C1 checkpoint.
+- speaking ladder from basic chunks to extended C1 discussion
+- Speech-to-Text Speaking Coach
+- adaptive Conversation Coach
+- microphone recording + IndexedDB persistence
+- replayable speaking history
+- pronunciation listen → imitate → record → replay practice
+- long-form listening with browser Speech Synthesis fallback
+- B2/C1 reading/listening progression
+- C1 Exit Pack
+- SRS vocabulary retrieval
+- Error Bank remediation
+- adaptive daily time prescription
+- CEFR readiness blockers
+- verified checkpoint transitions
+- local-first progress persistence and migration
+- full backup/import including speaking audio and transcript metadata
+- storage-health warnings and recovery boundaries
+- Chromium Playwright critical-flow coverage in CI
 
 ## Requirements
 
-- **Node.js 22.6+**
+- Node.js 22.6+
 - npm
-- Modern browser
-- Microphone permission for speaking evidence
-- IndexedDB/localStorage enabled for normal local-first persistence
+- modern browser
+- microphone permission for speaking evidence
+- IndexedDB + localStorage enabled
 
-The core learning path does not require a paid AI, speech-to-text service or cloud account. A teacher/qualified independent evaluator is required for verified CEFR checkpoint promotion in the current implementation.
+The core learning path works without a paid AI provider. A teacher/qualified independent evaluator is still required for verified CEFR checkpoint promotion.
 
 ## Run locally
 
@@ -118,31 +169,40 @@ npm run validate:content
 npm run typecheck
 npm run lint
 npm run build
+npx playwright install --with-deps chromium
+npm run test:e2e -- --reporter=line
 ```
 
-GitHub Actions also runs a production dependency audit before the test/build gate. Pull requests should not be merged while this verification is failing.
-
-The repository has now been validated in a real GitHub Actions environment with dependency installation, domain tests, curriculum validation, TypeScript checking, ESLint and an actual Next.js production build. See `docs/BUILD_STATUS.md` and `.github/workflows/ci.yml` for the current gate.
+GitHub Actions also runs `npm audit --omit=dev --audit-level=high`.
 
 ## Data safety
 
-Progress is local-first. Settings → Data & backup can export one versioned JSON backup containing validated learner state and speaking-audio evidence. Import validates the file before replacing current progress and protects against missing/duplicate recording evidence.
-
-Export a backup before changing browsers/devices, clearing site data or resetting progress.
+Progress is local-first. Export a backup before changing browsers/devices, clearing site data or resetting progress. Speaking Coach transcript metadata and speaking audio are included in the backup workflow.
 
 ## Production-readiness status
 
-The project is materially hardened compared with the original V1, but it is **not yet declared fully production-complete**. Remaining work is tracked in `docs/PRODUCTION_READINESS.md` and currently includes browser-level E2E coverage, further component/module decomposition, richer lower-level integrated assessment material and broader real multi-speaker/accent listening assets beyond browser TTS fallback.
+The project is materially hardened but should not be called fully production-complete until the complete CI gate is green and the remaining hardening work in `docs/PRODUCTION_READINESS.md` is resolved.
+
+Important remaining areas include:
+
+- richer integrated A2/B1/B2 assessment packs
+- broader real multi-speaker/accent listening assets
+- cross-browser media/storage verification
+- deployment-specific CSP
+- authentication/rate limiting before exposing paid AI routes publicly
+- regular real-human interaction in addition to AI conversation practice
 
 ## Important interpretation
 
-This project is designed to provide a serious pathway toward C1; it cannot guarantee C1 from passive completion. The learner must actually perform the speaking, listening, reading, writing, review and real-world tasks. The application is deliberately designed to avoid declaring C1 merely because lessons were completed.
+This project is designed to provide a serious pathway toward C1; it cannot guarantee C1 from passive completion. The learner must actually perform speaking, listening, reading, writing, review, immersion and real-world interaction tasks.
 
 See also:
 
-- `SPEC.md` — original requirements
-- `docs/PERSONALIZED_C1_EXECUTION.md` — personalized execution model
-- `docs/C1_EVIDENCE_STANDARD.md` — final readiness standard
-- `docs/ASSESSMENT_SYSTEM.md` — assessment architecture
-- `docs/PROJECT_ARCHITECTURE.md` — application architecture
-- `docs/PRODUCTION_READINESS.md` — production release gate and remaining hardening work
+- `docs/PERSONALIZED_C1_EXECUTION.md`
+- `docs/C1_EVIDENCE_STANDARD.md`
+- `docs/ASSESSMENT_SYSTEM.md`
+- `docs/PROJECT_ARCHITECTURE.md`
+- `docs/PRODUCTION_READINESS.md`
+- `docs/SPEAKING_COACH.md`
+- `docs/CONVERSATION_COACH.md`
+- `docs/KMITL_AI_PROVIDER.md`
