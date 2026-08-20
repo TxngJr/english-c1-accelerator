@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { localLessonTutorReply, parseLessonTutorReply } from "../src/lib/lesson-tutor.ts";
+import { cefrBand, localLessonTutorReply, parseLessonTutorReply } from "../src/lib/lesson-tutor.ts";
 
 test("lesson tutor parser accepts valid structured reply", () => {
   const parsed = parseLessonTutorReply(JSON.stringify({
@@ -18,6 +18,25 @@ test("lesson tutor parser accepts valid structured reply", () => {
 
 test("lesson tutor parser rejects empty AI payload", () => {
   assert.equal(parseLessonTutorReply('{"message":""}'), undefined);
+});
+
+test("intermediate CEFR labels stay in the correct learning band", () => {
+  assert.equal(cefrBand("A2-"), "A2");
+  assert.equal(cefrBand("A2+"), "A2");
+  assert.equal(cefrBand("B1-"), "B1");
+  assert.equal(cefrBand("B2+"), "B2");
+  assert.equal(cefrBand("C1-"), "C1");
+});
+
+test("A2-minus speaking fallback does not accidentally receive C1 duration", () => {
+  const reply = localLessonTutorReply({
+    mode: "speaking",
+    level: "A2-",
+    lessonTitle: "Daily routines",
+    focus: "present and past chunks",
+    turnIndex: 0
+  });
+  assert.equal(reply.suggestedSeconds, 45);
 });
 
 test("listening fallback hides transcript and asks for listening", () => {
