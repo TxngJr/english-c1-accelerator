@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
-import { allLessons } from "@/content/all-lessons";
-import { aiApiKey, aiBaseUrl, requestChatCompletion, resolveChatModel } from "@/lib/ai-provider";
-import { localLessonTutorReply, parseLessonTutorReply, type LessonTutorAction, type LessonTutorMode } from "@/lib/lesson-tutor";
-import type { Lesson } from "@/lib/types";
+import { allLessons } from "../../../content/all-lessons.ts";
+import { aiApiKey, aiBaseUrl, requestChatCompletion, resolveChatModel } from "../../../lib/ai-provider.ts";
+import { localLessonTutorReply, parseLessonTutorReply, type LessonTutorAction, type LessonTutorMode } from "../../../lib/lesson-tutor.ts";
+import type { Lesson } from "../../../lib/types.ts";
 
 export const runtime = "nodejs";
 
