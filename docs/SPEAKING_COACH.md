@@ -6,11 +6,11 @@ The Speaking Coach exists to solve a specific weakness of audio-only practice: a
 
 - microphone recording stored in IndexedDB
 - live browser speech recognition when the browser exposes `SpeechRecognition` / `webkitSpeechRecognition`
-- optional high-accuracy cloud transcription through the server-side `/api/transcribe` route
+- optional cloud transcription through the server-side `/api/transcribe` route
 - manual transcript correction fallback
 - learner confirmation that the transcript was reviewed before it becomes auditable evidence
 - speaking-rate, filler, repetition, discourse-marker, self-repair, lexical-variety, and sentence-length metrics
-- optional AI transcript feedback for grammar, collocation, vocabulary precision, coherence, and transcript-based fluency evidence
+- optional KMITL-backed AI transcript feedback for grammar, collocation, vocabulary precision, coherence, and transcript-based fluency evidence
 - B2/C1 readiness gates that require reviewed transcribed speaking samples instead of accepting long audio alone
 
 ## Important limits
@@ -67,17 +67,20 @@ This repeat-after-feedback cycle is more important than collecting many one-off 
 - at least one reviewed transcribed sample of 360 seconds or longer
 - independent evaluator still required for verified C1
 
-## Optional OpenAI configuration
+## Optional KMITL AI configuration
 
-Copy `.env.example` to `.env.local` and set `OPENAI_API_KEY` if you want cloud transcription and transcript-language feedback.
+Copy `.env.example` to `.env.local` and set the real student token only in that local file:
 
-The key stays on the server. Never expose it through a `NEXT_PUBLIC_*` variable.
+```env
+AI_API_KEY=your-real-kmitl-token
+AI_BASE_URL=https://api.ai.kmitl.ac.th/v1
+AI_MODEL_PREFIX=openrouter/
+```
 
-Default optional models:
+The key stays on the server. Never expose it through a `NEXT_PUBLIC_*` variable and never commit `.env.local`.
 
-- transcription: `gpt-4o-mini-transcribe`
-- feedback: `gpt-5.6-luna`
+Speaking feedback uses the OpenAI-compatible `/chat/completions` endpoint. `AI_CHAT_MODEL` may be set explicitly, or left blank so the application can query `/models` and try the recommended KMITL model families.
 
-Both can be overridden through environment variables.
+Cloud STT is separate: set `AI_TRANSCRIPTION_MODEL` only if the KMITL gateway exposes a model compatible with `/audio/transcriptions`. Otherwise Browser STT/manual transcript remains the supported path; the app does not call OpenAI directly as a fallback.
 
-The core learning path remains usable without a paid API: use browser STT when available, or type/correct the transcript manually.
+See `docs/KMITL_AI_PROVIDER.md` for the complete provider setup.
