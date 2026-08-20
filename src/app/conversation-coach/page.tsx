@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AIProviderStatus } from "@/components/ai-provider-status";
 import { ConversationCoach } from "@/components/conversation-coach";
 
 export default function ConversationCoachPage() {
@@ -14,6 +15,7 @@ export default function ConversationCoachPage() {
           <Link className="nav-button" href="/speaking-coach"><span className="nav-icon">🎙</span>Speaking Coach</Link>
           <Link className="nav-button" href="/"><span className="nav-icon">←</span>Course</Link>
         </nav>
+        <AIProviderStatus />
         <div className="sidebar-footer">
           <div className="tiny">C1 interaction training</div>
           <div style={{ fontWeight: 800, margin: "4px 0" }}>Unexpected follow-ups</div>
