@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { aiApiKey, aiBaseUrl, requestChatCompletion, resolveChatModel } from "@/lib/ai-provider";
-import { localLessonTutorReply, parseLessonTutorReply, type LessonTutorMode } from "@/lib/lesson-tutor";
+import { localLessonTutorReply, parseLessonTutorReply, type LessonTutorAction, type LessonTutorMode } from "@/lib/lesson-tutor";
 import type { CEFR } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -12,6 +12,7 @@ const allowedModes = new Set<LessonTutorMode>(["integrated", "speaking", "listen
 const allowedLevels = new Set<CEFR>([
   "A1", "A1+", "A2-", "A2", "A2+", "B1-", "B1", "B1+", "B2-", "B2", "B2+", "C1-", "C1"
 ]);
+const integratedCycle: LessonTutorAction[] = ["listen", "speak", "read", "write"];
 
 type HistoryItem = { role: "user" | "assistant"; content: string };
 
@@ -71,13 +72,15 @@ export async function POST(request: Request) {
   const history = cleanHistory(input.history);
   const weakSkills = cleanStrings(input.weakSkills, 5, 120);
   const recurringErrors = cleanStrings(input.recurringErrors, 8, 240);
+  const completedLearnerTurns = history.filter((item) => item.role === "user").length + (learnerMessage ? 1 : 0);
+  const requiredIntegratedAction = integratedCycle[completedLearnerTurns % integratedCycle.length];
 
   const fallback = localLessonTutorReply({
     mode,
     level,
     lessonTitle: title,
     focus,
-    turnIndex: history.filter((item) => item.role === "user").length,
+    turnIndex: completedLearnerTurns,
     learnerMessage
   });
 
@@ -134,6 +137,7 @@ weak skills: ${weakSkills.join(" | ") || "not enough evidence yet"}
 recurring errors: ${recurringErrors.join(" | ") || "none logged yet"}
 
 ACTIVE MODE: ${mode}
+${mode === "integrated" ? `REQUIRED NEXT 4-SKILL ACTION: ${requiredIntegratedAction}` : ""}
 
 RECENT TUTOR CONVERSATION
 <conversation>
@@ -158,6 +162,7 @@ Return exactly this JSON shape:
 
 Rules for this turn:
 - Keep one clear next action. Do not give five tasks at once.
+- In integrated mode, action MUST equal REQUIRED NEXT 4-SKILL ACTION.
 - For listening tasks set action="listen" and hideTranscript=true.
 - For speaking tasks use suggestedSeconds when useful.
 - For writing tasks use suggestedWords when useful.
@@ -182,6 +187,12 @@ Rules for this turn:
     const parsed = parseLessonTutorReply(result.text);
     if (!parsed) {
       return NextResponse.json({ reply: fallback, source: "local", reason: "invalid_ai_format" });
+    }
+    if (mode === "integrated" && parsed.action !== requiredIntegratedAction) {
+      return NextResponse.json({ reply: fallback, source: "local", reason: "integrated_cycle_mismatch" });
+    }
+    if (mode === "listening" && (parsed.action !== "listen" || !parsed.hideTranscript)) {
+      return NextResponse.json({ reply: fallback, source: "local", reason: "listening_contract_mismatch" });
     }
 
     return NextResponse.json({ reply: parsed, source: "kmitl", model });
