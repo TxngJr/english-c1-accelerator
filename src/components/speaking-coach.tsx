@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { saveRecordingBlob } from "@/lib/audio-store";
 import { loadState, saveState } from "@/lib/storage";
@@ -436,7 +437,7 @@ export function SpeakingCoach() {
         </div>
         <div className="top-actions">
           <span className="pill">{savedEvidenceCount} reviewed transcript samples</span>
-          <a className="btn" href="/">← Back to course</a>
+          <Link className="btn" href="/">← Back to course</Link>
         </div>
       </div>
 
