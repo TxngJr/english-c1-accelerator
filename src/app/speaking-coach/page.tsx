@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { SpeakingCoach } from "@/components/speaking-coach";
 
 export default function SpeakingCoachPage() {
@@ -9,9 +10,9 @@ export default function SpeakingCoachPage() {
           <div><strong>Speaking Coach</strong><span>transcript-driven practice</span></div>
         </div>
         <nav className="nav">
-          <a className="nav-button active" href="/speaking-coach"><span className="nav-icon">◉</span>Coach</a>
-          <a className="nav-button" href="/conversation-coach"><span className="nav-icon">💬</span>Conversation</a>
-          <a className="nav-button" href="/"><span className="nav-icon">←</span>Course</a>
+          <Link className="nav-button active" href="/speaking-coach"><span className="nav-icon">◉</span>Coach</Link>
+          <Link className="nav-button" href="/conversation-coach"><span className="nav-icon">💬</span>Conversation</Link>
+          <Link className="nav-button" href="/"><span className="nav-icon">←</span>Course</Link>
         </nav>
         <div className="sidebar-footer">
           <div className="tiny">Evidence rule</div>
