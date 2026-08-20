@@ -2,8 +2,13 @@ import { expect, test } from "@playwright/test";
 import { defaultState, STORAGE_KEY } from "../src/lib/storage.ts";
 import type { LearnerState, Skill } from "../src/lib/types.ts";
 
+function escapeRegex(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 async function openTab(page: import("@playwright/test").Page, name: string) {
-  await page.getByRole("button", { name, exact: true }).click();
+  const desktopNav = page.locator(".sidebar .nav");
+  await desktopNav.getByRole("button", { name: new RegExp(`${escapeRegex(name)}$`) }).click();
 }
 
 async function seedState(page: import("@playwright/test").Page, state: LearnerState) {
@@ -138,6 +143,6 @@ test("mobile navigation exposes all learning sections", async ({ page }) => {
   const mobileNav = page.locator(".mobile-nav");
   await expect(mobileNav).toBeVisible();
   await expect(mobileNav.locator("button.nav-button")).toHaveCount(13);
-  await mobileNav.getByRole("button", { name: "Settings", exact: true }).click();
+  await mobileNav.getByRole("button", { name: /Settings$/ }).click();
   await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible();
 });
