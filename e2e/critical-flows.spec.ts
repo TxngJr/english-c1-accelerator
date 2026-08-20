@@ -33,6 +33,21 @@ test("renders the app and serves the hardened security headers", async ({ page, 
   await expect(page.getByRole("heading", { name: "Today", exact: true })).toBeVisible();
 });
 
+test("embedded AI tutor is available across the course with a four-skill local fallback", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Open AI lesson tutor" }).click();
+
+  await expect(page.getByText("AI Lesson Tutor", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "4-skill loop", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Speaking", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Listening", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Reading", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Writing", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Start guided round" }).click();
+  await expect(page.getByText("Transcript hidden for listening practice", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Reveal transcript", exact: true })).toBeVisible();
+});
+
 test("speaking coach loads with transcript evidence controls", async ({ page }) => {
   await page.goto("/speaking-coach");
   await expect(page.getByRole("heading", { name: "Speaking Coach", exact: true })).toBeVisible();
