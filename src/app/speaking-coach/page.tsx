@@ -10,6 +10,7 @@ export default function SpeakingCoachPage() {
         </div>
         <nav className="nav">
           <a className="nav-button active" href="/speaking-coach"><span className="nav-icon">◉</span>Coach</a>
+          <a className="nav-button" href="/conversation-coach"><span className="nav-icon">💬</span>Conversation</a>
           <a className="nav-button" href="/"><span className="nav-icon">←</span>Course</a>
         </nav>
         <div className="sidebar-footer">
