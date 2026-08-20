@@ -43,6 +43,7 @@ The app tracks separately:
 - CEFR estimates by skill
 - structured workload evidence
 - unscripted speaking recordings
+- reviewed speaking transcripts and transcript metrics
 - normal-speed listening exposure
 - recurring production errors
 - SRS retention/review history
@@ -56,15 +57,38 @@ Important integrity rules include:
 - A lesson with listening material cannot complete until each required listening block has actually finished at an eligible speed.
 - Speaking evidence is credited only after the audio blob is successfully persisted.
 - Pronunciation and baseline-retake recordings do not inflate unscripted-fluency duration gates.
+- B2/C1 readiness requires reviewed audio+transcript speaking samples; long audio alone is not enough.
+- C1 requires at least one reviewed transcribed speaking sample of 360 seconds or longer.
 - Error Bank mastery uses one 0–100 scale with migration for older state formats.
 - Self-scored checkpoint rubrics are practice evidence only and never promote CEFR estimates.
 - Verified CEFR promotion requires a passing checkpoint attributed to an identified qualified human evaluator.
+
+## Speaking Coach / Speech-to-Text
+
+Open `/speaking-coach` or use the floating **Speaking Coach** button from the main course.
+
+The coach implements a repeatable production loop:
+
+1. speak from keywords, not a full script
+2. record the real attempt
+3. transcribe with browser STT, optional cloud STT, or manual fallback
+4. correct only obvious STT mistakes
+5. explicitly confirm the transcript was reviewed
+6. inspect speaking-rate, fillers, repetition, discourse markers, self-repairs and lexical-variety evidence
+7. optionally request AI feedback for grammar, collocation, vocabulary precision and coherence
+8. save the audio + reviewed transcript
+9. repeat the same prompt and improve one or two bottlenecks
+
+Speech-to-text is deliberately **not** used as a pronunciation score. Transcript analysis cannot reliably certify accent, stress, rhythm, intonation or audio intelligibility. Final C1 still requires broader evidence and independent assessment.
+
+The free/local path remains available through browser speech recognition when supported plus manual transcript correction. Optional server-side transcription and AI feedback can be enabled with `.env.local`; see `.env.example` and `docs/SPEAKING_COACH.md`.
 
 ## Core systems
 
 - Responsive 13-section learning interface
 - 224-day lesson engine
 - Speaking ladder from short chunks to extended C1 discussion
+- Dedicated Speech-to-Text Speaking Coach with reviewed transcript evidence
 - Browser microphone recording with IndexedDB persistence
 - Speaking history with replayable stored evidence
 - Pronunciation listen → imitate → record → replay practice
@@ -81,7 +105,7 @@ Important integrity rules include:
 - Verified checkpoint state transitions
 - Real-world missions that require explicit evidence
 - Local-first progress persistence with migration
-- Full progress backup/import including speaking audio
+- Full progress backup/import including speaking audio and transcript metadata
 - Storage-health warning when local persistence fails
 - Route/root error recovery boundaries
 - Chromium Playwright critical-flow E2E coverage in CI
@@ -90,7 +114,7 @@ Important integrity rules include:
 
 The final C1 rubric remains locked until the C1 Exit Pack has sufficient evidence, including all required tasks, all long listenings completed at normal speed, substantial recordings for every speaking task and at least one final speaking recording of 360 seconds.
 
-Even after those requirements are met, self-rating does not unlock C1. Final readiness still requires the broader skill/evidence profile and an independently verified C1 checkpoint.
+C1 readiness also requires reviewed transcribed speaking evidence so the learner's real production can be audited instead of relying on recording duration alone. Even after those requirements are met, self-rating does not unlock C1. Final readiness still requires the broader skill/evidence profile and an independently verified C1 checkpoint.
 
 ## Requirements
 
@@ -111,6 +135,16 @@ npm run dev
 
 Open `http://localhost:3000`.
 
+Optional high-accuracy STT / AI language feedback:
+
+```bash
+cp .env.example .env.local
+# add OPENAI_API_KEY to .env.local
+npm run dev
+```
+
+Keep the API key server-side; never put it in a `NEXT_PUBLIC_*` variable. The current optional defaults are `gpt-4o-mini-transcribe` for transcription and `gpt-5.6-luna` for transcript-language feedback, and both can be overridden by environment variables.
+
 ## Required production verification
 
 ```bash
@@ -129,13 +163,17 @@ The repository has been validated in a real GitHub Actions environment with depe
 
 ## Data safety
 
-Progress is local-first. Settings → Data & backup can export one versioned JSON backup containing validated learner state and speaking-audio evidence. Import validates the file before replacing current progress and protects against missing/duplicate recording evidence.
+Progress is local-first. Settings → Data & backup can export one versioned JSON backup containing validated learner state plus speaking-audio evidence. Speaking Coach transcript metadata, reviewed status, local metrics and saved AI feedback live inside the learner state and therefore travel with the backup.
+
+Import validates the file before replacing current progress and protects against missing/duplicate recording evidence. Transcript records are shape-validated during migration so malformed backup data cannot silently become advanced speaking evidence.
 
 Export a backup before changing browsers/devices, clearing site data or resetting progress.
 
 ## Production-readiness status
 
 The project is materially hardened compared with the original V1, but it is **not yet declared fully production-complete**. Remaining work is tracked in `docs/PRODUCTION_READINESS.md` and currently includes expanding browser coverage beyond the existing critical-flow suite, further component/module decomposition, richer lower-level integrated assessment material, broader real multi-speaker/accent listening assets beyond browser TTS fallback, cross-browser media/storage verification, deployment-specific CSP and repository rules that require the complete CI gate before merge.
+
+If optional OpenAI-backed speaking routes are enabled on a public deployment, place the app behind authentication/rate limiting before exposing paid API usage to untrusted users. For personal local use, the routes remain unavailable unless `OPENAI_API_KEY` is explicitly configured.
 
 ## Important interpretation
 
@@ -149,3 +187,4 @@ See also:
 - `docs/ASSESSMENT_SYSTEM.md` — assessment architecture
 - `docs/PROJECT_ARCHITECTURE.md` — application architecture
 - `docs/PRODUCTION_READINESS.md` — production release gate and remaining hardening work
+- `docs/SPEAKING_COACH.md` — speech-to-text workflow, evidence rules and learning protocol
