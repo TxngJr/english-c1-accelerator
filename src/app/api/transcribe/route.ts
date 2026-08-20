@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { aiApiKey, aiBaseUrl, withModelPrefix } from "@/lib/ai-provider";
 
 export const runtime = "nodejs";
 
@@ -21,12 +22,23 @@ function baseMimeType(type: string): string {
 }
 
 export async function POST(request: Request) {
-  const apiKey = process.env.OPENAI_API_KEY?.trim();
+  const apiKey = aiApiKey();
   if (!apiKey) {
     return NextResponse.json(
       {
-        error: "High-accuracy cloud transcription is not configured. Browser speech recognition and manual transcript correction remain available.",
+        error: "Cloud transcription is not configured. Set AI_API_KEY in .env.local. Browser speech recognition and manual transcript correction remain available.",
         code: "transcription_not_configured"
+      },
+      { status: 503 }
+    );
+  }
+
+  const configuredModel = process.env.AI_TRANSCRIPTION_MODEL?.trim();
+  if (!configuredModel) {
+    return NextResponse.json(
+      {
+        error: "No cloud transcription model is configured for the KMITL gateway. Set AI_TRANSCRIPTION_MODEL only if your KMITL account exposes a model compatible with /audio/transcriptions. Browser STT remains available.",
+        code: "transcription_model_not_configured"
       },
       { status: 503 }
     );
@@ -55,9 +67,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: `Unsupported audio type: ${mime || "unknown"}.` }, { status: 415 });
   }
 
+  const baseUrl = aiBaseUrl();
+  const model = withModelPrefix(configuredModel);
   const upstream = new FormData();
   upstream.append("file", audio, audio.name || "speaking-sample.webm");
-  upstream.append("model", process.env.OPENAI_TRANSCRIPTION_MODEL?.trim() || "gpt-4o-mini-transcribe");
+  upstream.append("model", model);
   upstream.append("language", "en");
   upstream.append(
     "prompt",
@@ -66,23 +80,29 @@ export async function POST(request: Request) {
 
   let response: Response;
   try {
-    response = await fetch("https://api.openai.com/v1/audio/transcriptions", {
+    response = await fetch(`${baseUrl}/audio/transcriptions`, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`
-      },
+      headers: { Authorization: `Bearer ${apiKey}` },
       body: upstream,
       cache: "no-store"
     });
   } catch {
-    return NextResponse.json({ error: "Could not reach the transcription service." }, { status: 502 });
+    return NextResponse.json({ error: "Could not reach the configured KMITL-compatible transcription service." }, { status: 502 });
   }
 
   if (!response.ok) {
     const detail = await response.text().catch(() => "");
-    const safeDetail = detail.slice(0, 500);
+    const code = response.status === 404 || response.status === 405
+      ? "transcription_endpoint_unsupported"
+      : "transcription_failed";
     return NextResponse.json(
-      { error: "Transcription failed.", detail: safeDetail || `Upstream status ${response.status}.` },
+      {
+        error: code === "transcription_endpoint_unsupported"
+          ? "The configured KMITL gateway does not expose a compatible /audio/transcriptions endpoint for this model. Use Browser STT/manual transcript instead."
+          : "Transcription failed.",
+        code,
+        detail: detail.slice(0, 500) || `Upstream status ${response.status}.`
+      },
       { status: 502 }
     );
   }
@@ -93,5 +113,5 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "The transcription service returned no text." }, { status: 502 });
   }
 
-  return NextResponse.json({ text, source: "openai" as const });
+  return NextResponse.json({ text, source: "kmitl" as const, model });
 }
