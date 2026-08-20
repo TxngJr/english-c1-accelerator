@@ -27,6 +27,14 @@ const validTargets = new Set<string>([
   "speaking", "listening", "reading", "writing", "grammarProduction", "grammarRecognition", "vocabulary", "pronunciation", "integrated"
 ]);
 
+export function cefrBand(level: CEFR): "A1" | "A2" | "B1" | "B2" | "C1" {
+  if (level.startsWith("A1")) return "A1";
+  if (level.startsWith("A2")) return "A2";
+  if (level.startsWith("B1")) return "B1";
+  if (level.startsWith("B2")) return "B2";
+  return "C1";
+}
+
 export function parseLessonTutorReply(text: string): LessonTutorReply | undefined {
   const cleaned = text.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
   let parsed: unknown;
@@ -65,16 +73,18 @@ export function parseLessonTutorReply(text: string): LessonTutorReply | undefine
 }
 
 function speakingSeconds(level: CEFR): number {
-  if (level === "A1" || level === "A2") return 45;
-  if (level === "B1") return 90;
-  if (level === "B2") return 150;
+  const band = cefrBand(level);
+  if (band === "A1" || band === "A2") return 45;
+  if (band === "B1") return 90;
+  if (band === "B2") return 150;
   return 240;
 }
 
 function writingWords(level: CEFR): number {
-  if (level === "A1" || level === "A2") return 60;
-  if (level === "B1") return 100;
-  if (level === "B2") return 160;
+  const band = cefrBand(level);
+  if (band === "A1" || band === "A2") return 60;
+  if (band === "B1") return 100;
+  if (band === "B2") return 160;
   return 220;
 }
 
