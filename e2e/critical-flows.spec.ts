@@ -33,6 +33,17 @@ test("renders the app and serves the hardened security headers", async ({ page, 
   await expect(page.getByRole("heading", { name: "Today", exact: true })).toBeVisible();
 });
 
+test("speaking coach loads with transcript evidence controls", async ({ page }) => {
+  await page.goto("/speaking-coach");
+  await expect(page.getByRole("heading", { name: "Speaking Coach", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "A2", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "B1", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "B2", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "C1", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "High-accuracy Cloud STT", exact: true })).toBeDisabled();
+  await expect(page.getByText(/I reviewed this transcript/)).toBeVisible();
+});
+
 test("Add to review is React-state driven and survives reload", async ({ page }) => {
   await page.goto("/");
   await openTab(page, "Vocabulary");
