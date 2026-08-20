@@ -1,3 +1,7 @@
+section[aria-label="AI lesson tutor"] {
+  background: var(--panel) !important;
+}
+
 @media (max-width: 980px) {
   button[aria-label="Open AI lesson tutor"] {
     bottom: 88px !important;
