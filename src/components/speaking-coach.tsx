@@ -124,7 +124,7 @@ export function SpeakingCoach() {
   const secondsRef = useRef(0);
   const recordingRef = useRef(false);
   const transcriptRef = useRef("");
-  const audioUrlRef = useRef<string>();
+  const audioUrlRef = useRef<string | undefined>(undefined);
 
   const metrics: SpeakingMetrics = useMemo(
     () => analyzeSpeakingTranscript(transcript, seconds || 1),
