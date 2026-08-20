@@ -1,8 +1,8 @@
 # English C1 Accelerator — Personalized Edition
 
-A local-first, speaking-first English learning system designed to move a learner from practical A1+/early A2 toward genuine CEFR C1 through evidence, not lesson-completion badges.
+A local-first, speaking-first English learning system designed around this learner's diagnostic profile: practical A1+/early A2, speaking as the weakest skill, stronger passive grammar recognition than active production, and a long-term target of genuine CEFR C1 for university, software/IT work, presentations, international communication and advanced English use.
 
-Finishing days, earning XP, receiving AI feedback, or self-rating a checkpoint cannot by themselves establish a CEFR level.
+The project treats CEFR progression as an evidence problem, not a lesson-completion badge. Finishing days, earning XP or self-rating a checkpoint cannot by themselves establish a CEFR level.
 
 ## Course pathway
 
@@ -12,128 +12,102 @@ Finishing days, earning XP, receiving AI feedback, or self-rating a checkpoint c
 - **~618.8 hours** of scheduled structured curriculum
 - **4,332 course exercises** + **34 C1 exit-assessment tasks**
 - **6,341 uniquely identified lesson/content items**
-- retrieval, vocabulary/chunks, grammar production, listening, speaking, reading, writing, review and exit checks
+- Every playable day includes retrieval, vocabulary/chunks, grammar production, listening, speaking, reading, writing, review and an exit check.
 
-The nominal pathway is:
+The nominal structure is four 8-week stages, but evidence and mastery control progression:
 
-1. A1+/A2- → strong A2
-2. A2 → B1
-3. B1 → B2
-4. B2 → C1
-
-Progression remains evidence/mastery based rather than time based.
+1. Accelerated Foundation Rebuild — A1+/A2- → strong A2
+2. Functional Independence — A2 → B1
+3. Independent Advanced User — B1 → B2
+4. C1 Advanced Proficiency — B2 → C1
 
 ## Personalized learning behavior
 
-- speaking has the highest baseline priority
-- listening has the second-highest priority
-- grammar production is weighted above grammar recognition
-- recurring Error Bank patterns increase future remediation priority
-- technical/university contexts are mixed with broad general English
-- Thai support reduces progressively as CEFR level rises
+The system intentionally does not allocate equal time to every skill.
+
+- Speaking receives the highest baseline weight.
+- Listening receives the second-highest weight.
+- Grammar production is weighted above recognition to convert passive knowledge into usable language.
+- Recurring Error Bank patterns raise future production/remediation priority.
+- Programming, AI, software architecture, university, projects, gaming, travel and professional communication recur as motivating contexts while broad general English remains mandatory.
+- Thai support follows a CEFR-aware immersion policy: visible early, available on demand during transition, and English-first at higher levels.
+
+See `src/content/personalized-program.ts`, `src/lib/immersion.ts` and `docs/PERSONALIZED_C1_EXECUTION.md`.
 
 ## Evidence-based progression
 
-The application tracks:
+The app tracks separately:
 
 - completed lessons and activities
-- objective exercise accuracy
+- objective exercise attempts and accuracy
 - CEFR estimates by skill
 - structured workload evidence
 - unscripted speaking recordings
 - reviewed speaking transcripts and transcript metrics
 - normal-speed listening exposure
 - recurring production errors
-- SRS retention
+- SRS retention/review history
 - A2 / B1 / B2 / C1 checkpoint attempts
 - independently verified checkpoint passes
 
-Important integrity rules:
+Important integrity rules include:
 
-- prerequisites are enforced by domain logic
-- listening evidence is required before applicable lessons can complete
-- speaking evidence is credited only after audio persistence succeeds
-- pronunciation/baseline recordings cannot inflate fluency gates
-- B2/C1 readiness requires reviewed audio + transcript samples
-- C1 requires at least one reviewed 360-second transcribed speaking sample
-- self-scored checkpoints never promote CEFR
-- verified CEFR promotion requires an identified qualified human evaluator
+- CEFR progress rolls correctly across level boundaries instead of getting stuck at 99%.
+- Prerequisites are enforced in domain logic as well as the UI.
+- A lesson with listening material cannot complete until each required listening block has actually finished at an eligible speed.
+- Speaking evidence is credited only after the audio blob is successfully persisted.
+- Pronunciation and baseline-retake recordings do not inflate unscripted-fluency duration gates.
+- B2/C1 readiness requires reviewed audio+transcript speaking samples; long audio alone is not enough.
+- C1 requires at least one reviewed transcribed speaking sample of 360 seconds or longer.
+- Error Bank mastery uses one 0–100 scale with migration for older state formats.
+- Self-scored checkpoint rubrics are practice evidence only and never promote CEFR estimates.
+- Verified CEFR promotion requires a passing checkpoint attributed to an identified qualified human evaluator.
 
 ## Speaking Coach / Speech-to-Text
 
-Open `/speaking-coach` or use the Speaking Coach entry from the main course.
+Open `/speaking-coach` or use the floating **Speaking Coach** button from the main course.
 
-Workflow:
+The coach implements a repeatable production loop:
 
-1. speak from keywords, not a script
+1. speak from keywords, not a full script
 2. record the real attempt
-3. transcribe through Browser STT, optional KMITL cloud STT, or manual fallback
+3. transcribe with browser STT, optional KMITL cloud STT, or manual fallback
 4. correct only obvious STT mistakes
-5. confirm that the transcript was reviewed
-6. inspect words/minute, fillers, repetition, discourse markers, self-repairs and lexical-variety evidence
-7. optionally request AI feedback for grammar, collocation, vocabulary precision and coherence
-8. save audio + reviewed transcript
+5. explicitly confirm the transcript was reviewed
+6. inspect speaking-rate, fillers, repetition, discourse markers, self-repairs and lexical-variety evidence
+7. optionally request KMITL-backed AI feedback for grammar, collocation, vocabulary precision and coherence
+8. save the audio + reviewed transcript
 9. repeat the same prompt and improve one or two bottlenecks
 
-Speech-to-text is **not** used as a pronunciation score. Text cannot directly certify accent, stress, rhythm, intonation or audio intelligibility.
+Speech-to-text is deliberately **not** used as a pronunciation score. Transcript analysis cannot reliably certify accent, stress, rhythm, intonation or audio intelligibility. Final C1 still requires broader evidence and independent assessment.
 
-## Conversation Coach
+## KMITL AI provider
 
-Open `/conversation-coach` for unscripted interaction practice.
-
-A2→C1 sessions progressively train:
-
-- clarification
-- reasons and examples
-- counterarguments
-- changed hypotheticals
-- qualification
-- reformulation for another audience
-- synthesis and trade-off discussion
-
-When the KMITL AI provider is configured, the next question is grounded in what the learner actually said. If the provider is unavailable, a deterministic local challenge engine keeps the practice loop usable.
-
-Conversation Coach remains training evidence, not independent C1 certification.
-
-## KMITL OpenAI-compatible provider
-
-The optional AI features now use the KMITL gateway instead of calling `api.openai.com` directly.
-
-Create `.env.local` from `.env.example`:
-
-```bash
-cp .env.example .env.local
-```
-
-Then configure locally:
+The optional AI features use the KMITL OpenAI-compatible gateway instead of calling OpenAI directly:
 
 ```env
 AI_API_KEY=your-real-kmitl-token
 AI_BASE_URL=https://api.ai.kmitl.ac.th/v1
 AI_MODEL_PREFIX=openrouter/
+AI_CHAT_MODEL=
 ```
 
-Never commit the real token and never expose it through a `NEXT_PUBLIC_*` variable.
+Keep `AI_CHAT_MODEL` blank for the normal configuration. The server calls the authenticated `GET /models` endpoint and selects the strongest recognized model that the token actually exposes. It does not assume availability from a public model catalog.
 
-### Chat models
+For the teacher-recommended set, the capability preference is:
+
+1. Grok 4.6
+2. Kimi K3
+3. DeepSeek V4 Pro, when available
+4. DeepSeek V4 Flash
+
+The selector also recognizes stronger frontier families if KMITL exposes them. Set `AI_CHAT_MODEL` only when intentionally overriding automatic selection. The safe endpoint `GET /api/ai-provider/status` reports the chosen model without returning the API key.
 
 Speaking feedback and Conversation Coach use the OpenAI-compatible:
 
 ```text
 POST /chat/completions
 ```
-
-Set an exact model if desired:
-
-```env
-AI_CHAT_MODEL=openrouter/<exact-model-id>
-```
-
-If `AI_CHAT_MODEL` is blank, the server queries `GET /models` and tries KMITL-recommended model families in this order:
-
-1. Deepseek v4 Flash
-2. Kimi K3
-3. Grok 4.6
 
 Purpose-specific overrides are available through `AI_FEEDBACK_MODEL` and `AI_CONVERSATION_MODEL`.
 
