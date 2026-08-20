@@ -1,6 +1,6 @@
 # KMITL OpenAI-Compatible API Setup
 
-This project can use the KMITL AI gateway instead of calling OpenAI directly.
+This project uses the KMITL AI gateway instead of calling OpenAI directly.
 
 ## 1. Create `.env.local`
 
@@ -10,43 +10,57 @@ Copy `.env.example` to `.env.local` and add the real student token locally:
 AI_API_KEY=your-real-kmitl-token
 AI_BASE_URL=https://api.ai.kmitl.ac.th/v1
 AI_MODEL_PREFIX=openrouter/
+AI_CHAT_MODEL=
 ```
 
 Never commit `.env.local` or a real API token. `.gitignore` already ignores `.env*` except `.env.example`.
 
-## 2. Chat model selection
+## 2. Strongest-available chat model selection
 
 KMITL requires `openrouter/` as the prefix for model names. The application automatically adds that prefix to explicitly configured model ids when necessary.
 
-You may either set an exact model id:
-
-```env
-AI_CHAT_MODEL=openrouter/<exact-model-id>
-```
-
-or leave `AI_CHAT_MODEL` blank. When it is blank, the server queries:
+For normal use, leave `AI_CHAT_MODEL` blank. The server asks the authenticated gateway for the models that this token can actually use:
 
 ```text
 GET https://api.ai.kmitl.ac.th/v1/models
 Authorization: Bearer <token>
 ```
 
-and tries the KMITL-recommended families in this order:
+It then ranks only models that appear in that response. This prevents the app from assuming that a model is available merely because it exists publicly.
 
-1. Deepseek v4 Flash
-2. Kimi K3
+The capability-oriented ranking currently recognizes these high-end families in this order:
+
+1. GPT-5.6 Sol, when the KMITL gateway actually exposes it
+2. Claude Fable 5, when exposed
 3. Grok 4.6
+4. Kimi K3
+5. DeepSeek V4 Pro
+6. DeepSeek V4 Flash
 
-Matching uses both the model `id` and optional `name`, so the app does not need to guess the exact provider slug from a display name.
+For the teacher-provided recommended set of Grok 4.6, Kimi K3 and DeepSeek V4 Flash, the app therefore selects **Grok 4.6** when that model is returned for the token.
 
-Purpose-specific overrides are also supported:
+The selected model is cached for 10 minutes to avoid wasting quota/model-list requests. You can inspect the safe runtime result at:
+
+```text
+GET /api/ai-provider/status
+```
+
+That endpoint never returns the API token. It reports whether KMITL AI is configured, which model was selected and whether selection was explicit or automatic.
+
+If KMITL later adds a model that is not in the ranking table and you know it should be preferred, set its exact id explicitly:
+
+```env
+AI_CHAT_MODEL=openrouter/<exact-model-id>
+```
+
+Purpose-specific overrides remain supported:
 
 ```env
 AI_FEEDBACK_MODEL=
 AI_CONVERSATION_MODEL=
 ```
 
-If these are blank, `AI_CHAT_MODEL` or auto-discovery is used.
+If they are blank, feedback and Conversation Coach use `AI_CHAT_MODEL` or strongest-available auto-selection.
 
 ## 3. API endpoint compatibility
 
@@ -56,7 +70,7 @@ Speaking feedback and Conversation Coach use the broadly supported OpenAI-compat
 POST /chat/completions
 ```
 
-The application no longer depends on OpenAI's provider-specific Responses API for these features.
+The application does not call `api.openai.com` for these features.
 
 ## 4. Speech-to-text
 
@@ -74,7 +88,7 @@ Then set:
 AI_TRANSCRIPTION_MODEL=openrouter/<compatible-transcription-model-id>
 ```
 
-If no transcription model is configured, or if the gateway does not expose `/audio/transcriptions`, the app returns a clear fallback message and continues to support Browser STT/manual transcription. It does not fall back to `api.openai.com`.
+If no transcription model is configured, or if the gateway does not expose `/audio/transcriptions`, the app returns a clear fallback message and continues to support Browser STT/manual transcription. It never falls back to `api.openai.com`.
 
 ## 5. Security
 
@@ -86,10 +100,10 @@ If no transcription model is configured, or if the gateway does not expose `/aud
 
 ## 6. Recommended study usage
 
-Use cloud tokens where they add the most learning value:
+Spend cloud tokens where a stronger model materially improves learning:
 
-- Speaking Coach language feedback after a serious recorded attempt
-- Conversation Coach adaptive follow-up questions at B1-C1
-- complex correction/coherence feedback
+- detailed Speaking Coach language feedback after a serious recorded attempt
+- adaptive Conversation Coach follow-up questions, especially B1-C1
+- coherence, reformulation, nuance and error-pattern feedback
 
 Do not spend API budget on tasks already handled reliably by local metrics, normal lesson checking, or browser speech recognition.
