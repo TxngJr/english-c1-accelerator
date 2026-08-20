@@ -63,6 +63,25 @@ Important integrity rules include:
 - Self-scored checkpoint rubrics are practice evidence only and never promote CEFR estimates.
 - Verified CEFR promotion requires a passing checkpoint attributed to an identified qualified human evaluator.
 
+## AI Lesson Tutor — available throughout the course
+
+The main course now includes a floating **AI Tutor · 4 Skills** control. The tutor reloads the latest learner state when a round starts and grounds its coaching in the canonical current lesson on the server rather than trusting browser-supplied lesson text.
+
+It can train six focused modes:
+
+- **4-skill loop** — enforced `listen → speak → read → write` rotation, then repeat at higher difficulty
+- **Speaking** — spontaneous explanation, clarification, evidence, counterargument, qualification and reformulation
+- **Listening** — tutor speech plays while the transcript is hidden until the learner chooses to reveal it
+- **Reading** — lesson-linked reading with gist/detail/inference/stance/synthesis questions scaled to CEFR
+- **Writing** — first draft → selective high-value feedback → rewrite from memory
+- **Grammar** — transform current lesson patterns into original production rather than rule recitation
+
+The server builds a compact mode-specific digest from the lesson's vocabulary/chunks, grammar examples, listening material, speaking/writing prompts, reading material and real-world mission. Only relevant sections are sent for the active mode to reduce KMITL token usage.
+
+The tutor also receives compact weak-skill signals and recurring Error Bank patterns, but it **cannot add CEFR points, pass exercises, complete lessons, create verified checkpoints or count browser STT as audited speaking evidence**. AI Tutor practice and mastery evidence remain deliberately separate.
+
+If the KMITL provider is unavailable, a deterministic local coach preserves the learning loop. See `docs/AI_LESSON_TUTOR.md`.
+
 ## Speaking Coach / Speech-to-Text
 
 Open `/speaking-coach` or use the floating **Speaking Coach** button from the main course.
@@ -90,9 +109,10 @@ AI_API_KEY=your-real-kmitl-token
 AI_BASE_URL=https://api.ai.kmitl.ac.th/v1
 AI_MODEL_PREFIX=openrouter/
 AI_CHAT_MODEL=
+AI_TUTOR_MODEL=
 ```
 
-Keep `AI_CHAT_MODEL` blank for the normal configuration. The server calls the authenticated `GET /models` endpoint and selects the strongest recognized model that the token actually exposes. It does not assume availability from a public model catalog.
+Keep `AI_CHAT_MODEL` and `AI_TUTOR_MODEL` blank for the normal configuration. The server calls the authenticated `GET /models` endpoint and selects the strongest recognized model that the token actually exposes. It does not assume availability from a public model catalog.
 
 For the teacher-recommended set, the capability preference is:
 
@@ -103,13 +123,13 @@ For the teacher-recommended set, the capability preference is:
 
 The selector also recognizes stronger frontier families if KMITL exposes them. Set `AI_CHAT_MODEL` only when intentionally overriding automatic selection. The safe endpoint `GET /api/ai-provider/status` reports the chosen model without returning the API key.
 
-Speaking feedback and Conversation Coach use the OpenAI-compatible:
+Speaking feedback, Conversation Coach and Course AI Tutor use the OpenAI-compatible:
 
 ```text
 POST /chat/completions
 ```
 
-Purpose-specific overrides are available through `AI_FEEDBACK_MODEL` and `AI_CONVERSATION_MODEL`.
+Purpose-specific overrides are available through `AI_FEEDBACK_MODEL`, `AI_CONVERSATION_MODEL` and `AI_TUTOR_MODEL`.
 
 ### Cloud STT
 
@@ -123,6 +143,8 @@ See `docs/KMITL_AI_PROVIDER.md` for the full setup guide.
 
 - responsive learning interface
 - 224-day lesson engine
+- embedded current-lesson AI Tutor with enforced four-skill deliberate-practice loop
+- canonical server-side lesson grounding with mode-specific token budgeting
 - speaking ladder from basic chunks to extended C1 discussion
 - Speech-to-Text Speaking Coach
 - adaptive Conversation Coach
@@ -177,7 +199,7 @@ GitHub Actions also runs `npm audit --omit=dev --audit-level=high`.
 
 ## Data safety
 
-Progress is local-first. Export a backup before changing browsers/devices, clearing site data or resetting progress. Speaking Coach transcript metadata and speaking audio are included in the backup workflow.
+Progress is local-first. Export a backup before changing browsers/devices, clearing site data or resetting progress. Speaking Coach transcript metadata and speaking audio are included in the backup workflow. Course AI Tutor chat history is separate convenience state per lesson and is not mastery evidence.
 
 ## Production-readiness status
 
@@ -203,6 +225,7 @@ See also:
 - `docs/ASSESSMENT_SYSTEM.md`
 - `docs/PROJECT_ARCHITECTURE.md`
 - `docs/PRODUCTION_READINESS.md`
+- `docs/AI_LESSON_TUTOR.md`
 - `docs/SPEAKING_COACH.md`
 - `docs/CONVERSATION_COACH.md`
 - `docs/KMITL_AI_PROVIDER.md`
