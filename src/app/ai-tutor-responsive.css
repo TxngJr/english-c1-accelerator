@@ -7,6 +7,10 @@ section[aria-label="AI lesson tutor"] {
     bottom: 88px !important;
   }
 
+  .practice-shortcuts {
+    bottom: 142px !important;
+  }
+
   section[aria-label="AI lesson tutor"] {
     bottom: 82px !important;
     height: min(720px, calc(100vh - 102px)) !important;
@@ -19,5 +23,9 @@ section[aria-label="AI lesson tutor"] {
     right: 8px !important;
     width: auto !important;
     border-radius: 16px !important;
+  }
+
+  .practice-shortcuts {
+    right: 12px !important;
   }
 }
