@@ -2,8 +2,9 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   aiBaseUrl,
-  chooseRecommendedKmitlModel,
+  chooseStrongestKmitlModel,
   extractChatCompletionText,
+  modelCapabilityScore,
   withModelPrefix
 } from "../src/lib/ai-provider.ts";
 
@@ -12,17 +13,40 @@ test("KMITL base URL normalization removes trailing slashes", () => {
 });
 
 test("explicit KMITL models receive openrouter prefix exactly once", () => {
-  assert.equal(withModelPrefix("deepseek/deepseek-v4-flash", "openrouter/"), "openrouter/deepseek/deepseek-v4-flash");
-  assert.equal(withModelPrefix("openrouter/kimi/k3", "openrouter/"), "openrouter/kimi/k3");
+  assert.equal(withModelPrefix("x-ai/grok-4.6", "openrouter/"), "openrouter/x-ai/grok-4.6");
+  assert.equal(withModelPrefix("openrouter/moonshot/kimi-k3", "openrouter/"), "openrouter/moonshot/kimi-k3");
 });
 
-test("recommended model discovery prefers Deepseek v4 Flash before Kimi and Grok", () => {
-  const selected = chooseRecommendedKmitlModel([
-    { id: "openrouter/x-ai/grok-4.6", name: "Grok 4.6" },
+test("teacher-recommended KMITL models prefer Grok 4.6 for maximum capability", () => {
+  const selected = chooseStrongestKmitlModel([
+    { id: "openrouter/deepseek/deepseek-v4-flash", name: "Deepseek v4 Flash" },
     { id: "openrouter/moonshot/kimi-k3", name: "Kimi K3" },
-    { id: "openrouter/deepseek/deepseek-v4-flash", name: "Deepseek v4 Flash" }
+    { id: "openrouter/x-ai/grok-4.6", name: "Grok 4.6" }
   ]);
-  assert.equal(selected, "openrouter/deepseek/deepseek-v4-flash");
+  assert.equal(selected, "openrouter/x-ai/grok-4.6");
+});
+
+test("strongest-model discovery only selects models actually returned by KMITL", () => {
+  const selected = chooseStrongestKmitlModel([
+    { id: "openrouter/deepseek/deepseek-v4-pro", name: "Deepseek V4 Pro" },
+    { id: "openrouter/moonshot/kimi-k3", name: "Kimi K3" }
+  ]);
+  assert.equal(selected, "openrouter/moonshot/kimi-k3");
+});
+
+test("capability table can prefer a stronger frontier model when KMITL exposes it", () => {
+  assert.ok(
+    modelCapabilityScore({ id: "openrouter/openai/gpt-5.6-sol" }) >
+      modelCapabilityScore({ id: "openrouter/x-ai/grok-4.6" })
+  );
+  assert.ok(
+    modelCapabilityScore({ id: "openrouter/x-ai/grok-4.6" }) >
+      modelCapabilityScore({ id: "openrouter/deepseek/deepseek-v4-flash" })
+  );
+});
+
+test("unknown model ids are not guessed as strongest", () => {
+  assert.equal(chooseStrongestKmitlModel([{ id: "openrouter/vendor/new-model" }]), undefined);
 });
 
 test("chat completion parser accepts normal OpenAI-compatible content", () => {
