@@ -13,8 +13,9 @@ Every change targeting `main` must pass:
 5. `npm run typecheck`
 6. `npm run lint`
 7. `npm run build`
+8. `npm run test:e2e -- --reporter=line` in Chromium
 
-GitHub Actions used by the verification workflow are pinned to immutable commit SHAs. The workflow itself runs with read-only repository contents permission.
+A passing production build is not sufficient if the browser E2E suite is red. GitHub Actions used by the verification workflow are pinned to immutable commit SHAs. The workflow itself runs with read-only repository contents permission.
 
 ## Core invariants already enforced
 
@@ -54,18 +55,24 @@ Storage failures surface to the learner instead of being silently swallowed. Rou
 
 Security headers are regression-tested. This baseline does not replace a deployment-specific CSP once external media/API origins are finalized.
 
+## Browser verification status
+
+A Chromium Playwright critical-flow suite now exists and covers initial rendering/security headers, persistent SRS add-to-review state, course prerequisite locks, transcript gating, incorrect SRS grading restrictions, self-scored checkpoint non-promotion, invalid backup recovery and mobile navigation.
+
+The latest merged run on `main` was not fully green: 1/8 browser tests passed and 7/8 failed because the test selectors expected labels such as `Vocabulary` while the accessible button name included decorative icon text such as `Aa Vocabulary`. This is a test-harness selector defect, not evidence that the page failed to render. The selector correction is staged on `chatgpt/production-readiness-audit`; the release remains unverified until the full gate is confirmed green.
+
 ## Remaining hardening tracks
 
 The following work still matters before declaring a broad public production release complete:
 
-- browser/component E2E tests for critical learning flows, including mobile navigation, SRS state, backup/import and checkpoint behavior
+- expand browser/component E2E coverage beyond the current critical flows and add regression cases for later-course/C1 workflows
 - feature-module refactor of the current large client component to reduce blast radius and client bundle coupling
 - richer integrated A2/B1/B2 assessment packs backed by actual in-app task evidence rather than primarily rubric metadata
 - broader advanced listening audio with multiple real speakers/accents; browser TTS should remain a fallback, not the only advanced input source
 - deployment-specific Content Security Policy after final media/API origins are known
-- branch protection / ruleset requiring the CI check before merge (repository administration setting)
+- branch protection / ruleset requiring the complete CI check before merge (repository administration setting)
 - cross-browser smoke verification for Chrome, Edge, Safari and Firefox, especially MediaRecorder/SpeechSynthesis/IndexedDB behavior
 
 ## Release rule
 
-Do not label the application fully production-ready while a required CI check is failing, a P0 learner-progression invariant is unresolved, or a critical browser workflow lacks a tested recovery path.
+Do not label the application fully production-ready while a required CI check is failing, a P0 learner-progression invariant is unresolved, or a critical browser workflow lacks a tested recovery path. Do not merge a browser-test change merely because domain tests and `next build` are green if the E2E step is failing.
