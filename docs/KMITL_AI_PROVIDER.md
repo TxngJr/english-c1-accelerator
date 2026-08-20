@@ -58,17 +58,26 @@ Purpose-specific overrides remain supported:
 ```env
 AI_FEEDBACK_MODEL=
 AI_CONVERSATION_MODEL=
+AI_TUTOR_MODEL=
 ```
 
-If they are blank, feedback and Conversation Coach use `AI_CHAT_MODEL` or strongest-available auto-selection.
+If they are blank, Speaking Feedback, Conversation Coach and the embedded Course AI Tutor use `AI_CHAT_MODEL` or strongest-available auto-selection.
 
 ## 3. API endpoint compatibility
 
-Speaking feedback and Conversation Coach use the broadly supported OpenAI-compatible endpoint:
+Speaking feedback, Conversation Coach and the Course AI Tutor use the broadly supported OpenAI-compatible endpoint:
 
 ```text
 POST /chat/completions
 ```
+
+The Course AI Tutor endpoint is internal to the app:
+
+```text
+POST /api/lesson-tutor
+```
+
+It supplies only a compact current-lesson context, weak-skill signals, recurring Error Bank patterns, recent tutor turns and the latest learner answer. It does not send the entire local learner-state object upstream.
 
 The application does not call `api.openai.com` for these features.
 
@@ -76,7 +85,9 @@ The application does not call `api.openai.com` for these features.
 
 Browser Speech Recognition remains the default free/local path when the browser supports it. Manual transcript correction is always available.
 
-Cloud STT is optional. Configure it only when the KMITL gateway exposes a model compatible with:
+The embedded Course AI Tutor uses browser Speech Recognition for conversational speaking input and browser Speech Synthesis for listen-first tasks. These browser features do not require KMITL transcription tokens.
+
+Cloud STT is optional for the dedicated Speaking/Conversation recording flows. Configure it only when the KMITL gateway exposes a model compatible with:
 
 ```text
 POST /audio/transcriptions
@@ -97,13 +108,18 @@ If no transcription model is configured, or if the gateway does not expose `/aud
 - Never paste a real key into source code, tests, README files, screenshots, issues, commits, or pull-request descriptions.
 - For public deployment, add authentication and rate limiting before allowing untrusted users to call paid AI routes.
 - The KMITL monthly quota should be treated as limited study budget; use Browser STT and local metrics where they are sufficient.
+- AI Tutor conversation is practice state only and never auto-promotes CEFR/mastery evidence.
 
 ## 6. Recommended study usage
 
 Spend cloud tokens where a stronger model materially improves learning:
 
+- one integrated listen → speak → read → write Course AI Tutor cycle in the current lesson
+- a focused Course AI Tutor round on the weakest skill/error pattern
 - detailed Speaking Coach language feedback after a serious recorded attempt
 - adaptive Conversation Coach follow-up questions, especially B1-C1
 - coherence, reformulation, nuance and error-pattern feedback
 
 Do not spend API budget on tasks already handled reliably by local metrics, normal lesson checking, or browser speech recognition.
+
+See `docs/AI_LESSON_TUTOR.md` for the four-skill teaching protocol and CEFR integrity rules.
