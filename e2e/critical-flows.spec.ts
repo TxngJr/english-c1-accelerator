@@ -44,6 +44,15 @@ test("speaking coach loads with transcript evidence controls", async ({ page }) 
   await expect(page.getByText(/I reviewed this transcript/)).toBeVisible();
 });
 
+test("conversation coach loads with unexpected-follow-up practice controls", async ({ page }) => {
+  await page.goto("/conversation-coach");
+  await expect(page.getByRole("heading", { name: "Conversation Coach", exact: true })).toBeVisible();
+  await expect(page.getByText(/Current question/)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Hear question", exact: false })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Start answer", exact: false })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Submit turn/ })).toBeDisabled();
+});
+
 test("Add to review is React-state driven and survives reload", async ({ page }) => {
   await page.goto("/");
   await openTab(page, "Vocabulary");
