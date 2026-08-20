@@ -24,9 +24,11 @@ Every submitted learner turn is stored as normal speaking evidence with audio, r
 
 ## Offline/local fallback
 
-If `OPENAI_API_KEY` is not configured or the AI follow-up route is unavailable, the app uses a deterministic local challenge bank. The learning loop therefore remains usable without a paid API.
+If `AI_API_KEY` is not configured or the KMITL-compatible follow-up route is unavailable, the app uses a deterministic local challenge bank. The learning loop therefore remains usable without cloud AI.
 
-When an API key is configured, `/api/conversation-follow-up` asks for one level-appropriate question grounded in what the learner actually said. Learner transcript/history is delimited as content and is not treated as system instructions.
+When KMITL AI is configured, `/api/conversation-follow-up` uses the OpenAI-compatible `/chat/completions` endpoint and asks for one level-appropriate question grounded in what the learner actually said. Learner transcript/history is delimited as content and is not treated as system instructions.
+
+Model selection uses `AI_CONVERSATION_MODEL`, then `AI_CHAT_MODEL`, then KMITL `/models` auto-discovery. See `docs/KMITL_AI_PROVIDER.md`.
 
 ## CEFR integrity
 
