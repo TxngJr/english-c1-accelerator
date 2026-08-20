@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getAnyLesson } from "@/content/all-lessons";
 import { AIProviderStatus } from "@/components/ai-provider-status";
+import { levelIndex } from "@/lib/adaptive";
 import { loadState } from "@/lib/storage";
 import {
   lessonTutorModes,
@@ -11,7 +12,7 @@ import {
   type LessonTutorMode,
   type LessonTutorReply
 } from "@/lib/lesson-tutor";
-import type { CEFR, Lesson, LearnerState, Skill } from "@/lib/types";
+import type { Lesson, LearnerState, Skill } from "@/lib/types";
 
 type TutorContext = {
   lesson: Lesson;
@@ -76,7 +77,6 @@ interface SpeechRecognitionLike {
 
 type SpeechRecognitionConstructorLike = new () => SpeechRecognitionLike;
 
-const levelRank: Record<CEFR, number> = { A1: 0, A2: 1, B1: 2, B2: 3, C1: 4 };
 const skillLabels: Record<Skill, string> = {
   speaking: "Speaking",
   listening: "Listening",
@@ -101,7 +101,7 @@ function weakSkillNames(state: LearnerState): string[] {
     .sort((a, b) => {
       const aValue = state.skillEstimates[a];
       const bValue = state.skillEstimates[b];
-      return levelRank[aValue.level] - levelRank[bValue.level] || aValue.progress - bValue.progress;
+      return levelIndex(aValue.level) - levelIndex(bValue.level) || aValue.progress - bValue.progress;
     })
     .slice(0, 4)
     .map((skill) => `${skillLabels[skill]} ${state.skillEstimates[skill].level} ${state.skillEstimates[skill].progress}%`);
@@ -157,7 +157,11 @@ function speakText(text: string, rate: number) {
 function storageMessages(value: unknown): ChatMessage[] {
   if (!Array.isArray(value)) return [];
   return value
-    .filter((item): item is ChatMessage => Boolean(item) && typeof item === "object" && (item as ChatMessage).role !== undefined && typeof (item as ChatMessage).content === "string")
+    .filter((item): item is ChatMessage => {
+      if (!item || typeof item !== "object") return false;
+      const candidate = item as Partial<ChatMessage>;
+      return (candidate.role === "user" || candidate.role === "assistant") && typeof candidate.content === "string";
+    })
     .slice(-24)
     .map((item) => ({ ...item, revealed: item.revealed ?? false }));
 }
@@ -171,6 +175,7 @@ export function CourseAITutor() {
   const [interim, setInterim] = useState("");
   const [busy, setBusy] = useState(false);
   const [micActive, setMicActive] = useState(false);
+  const [speechNotice, setSpeechNotice] = useState("");
   const [autoPlayListening, setAutoPlayListening] = useState(true);
   const [storageReady, setStorageReady] = useState(false);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
@@ -179,7 +184,7 @@ export function CourseAITutor() {
   const activeMode = useMemo(() => lessonTutorModes.find((item) => item.id === mode) ?? lessonTutorModes[0], [mode]);
   const wordCount = input.trim() ? input.trim().split(/\s+/).filter(Boolean).length : 0;
 
-  const refreshContext = (loadSaved = true) => {
+  const refreshContext = useCallback((loadSaved = true) => {
     const next = contextFromState();
     setContext(next);
     if (loadSaved && typeof window !== "undefined") {
@@ -201,7 +206,7 @@ export function CourseAITutor() {
     }
     setStorageReady(true);
     return next;
-  };
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -209,7 +214,7 @@ export function CourseAITutor() {
     const onFocus = () => refreshContext(false);
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
-  }, [open]);
+  }, [open, refreshContext]);
 
   useEffect(() => {
     if (!storageReady || !context || typeof window === "undefined") return;
@@ -235,6 +240,7 @@ export function CourseAITutor() {
     setMessages([]);
     setInput("");
     setInterim("");
+    setSpeechNotice("");
   };
 
   const appendReply = (reply: LessonTutorReply, source: "kmitl" | "local", model?: string) => {
@@ -258,8 +264,8 @@ export function CourseAITutor() {
   };
 
   const requestTutor = async (learnerMessage = "") => {
-    const freshContext = refreshContext(false);
     if (busy) return;
+    const freshContext = refreshContext(false);
     const trimmed = learnerMessage.trim();
     const currentHistory = messages.slice(-12);
     if (trimmed) {
@@ -317,7 +323,10 @@ export function CourseAITutor() {
       webkitSpeechRecognition?: SpeechRecognitionConstructorLike;
     };
     const Constructor = browser.SpeechRecognition ?? browser.webkitSpeechRecognition;
-    if (!Constructor) return;
+    if (!Constructor) {
+      setSpeechNotice("Browser Speech Recognition is unavailable here. Type your answer, or use Chrome/Edge for live speech-to-text.");
+      return;
+    }
 
     const recognition = new Constructor();
     recognition.continuous = true;
@@ -337,12 +346,16 @@ export function CourseAITutor() {
       }
       setInterim(interimText.trim());
     };
-    recognition.onerror = () => setMicActive(false);
+    recognition.onerror = () => {
+      setMicActive(false);
+      setSpeechNotice("Speech recognition stopped. You can keep typing or start the microphone again.");
+    };
     recognition.onend = () => {
       setMicActive(false);
       setInterim("");
     };
     recognitionRef.current = recognition;
+    setSpeechNotice("");
     setMicActive(true);
     recognition.start();
   };
@@ -358,6 +371,7 @@ export function CourseAITutor() {
     setMessages([]);
     setInput("");
     setInterim("");
+    setSpeechNotice("");
   };
 
   const reveal = (id: string) => {
@@ -500,6 +514,7 @@ export function CourseAITutor() {
           placeholder={mode === "speaking" ? "Speak with the mic or type what you want to say…" : mode === "writing" ? "Write your draft here…" : "Answer the tutor or ask about this lesson…"}
         />
         {interim ? <div className="small muted">Listening… {interim}</div> : null}
+        {speechNotice ? <div className="small muted">{speechNotice}</div> : null}
         <div className="lesson-header">
           <div className="small muted">
             {mode === "writing" ? `${wordCount} words` : "Mic STT is practice input only; use recorded Speaking Coach evidence for audited speaking readiness."}
